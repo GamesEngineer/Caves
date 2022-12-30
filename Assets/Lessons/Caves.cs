@@ -31,7 +31,7 @@ namespace Lesson
     {
         public static Direction NegativeDirection(this FaceAxis faceAxis)
         {
-            return (Direction)(1 << (int)faceAxis);
+            return (Direction)(1 << (int)faceAxis); // TODO - 12/29/2022 Q: "Is this a bug?" A: No, it is correct.
         }
 
         public static Direction PositiveDirection(this FaceAxis faceAxis)
@@ -68,8 +68,52 @@ namespace Lesson
         }
     }
 
+    public readonly struct GridWall
+    {
+        public readonly Vector3Int coordinates; // walls at (x,y,z,*) are on the West, Down, and South sides of the cell at (x,y,z)
+        public readonly FaceAxis faceAxis; // axis is perpendicular to the face
+
+        public GridWall(Vector3Int coordinates, FaceAxis faceAxis)
+        {
+            this.coordinates = coordinates;
+            this.faceAxis = faceAxis;
+        }
+    }
+
     public class Caves : MonoBehaviour
     {
+        [SerializeField] Vector3Int gridSize = new Vector3Int(64, 8, 64);
+
+        private bool[/*X*/,/*Y*/,/*Z*/] cells; // false = closed, true = open
+        private readonly HashSet<GridWall> allWalls = new HashSet<GridWall>();
+
+        public bool IsCellOpen(Vector3Int coordinates)
+        {
+            if (!coordinates.IsInRange(Vector3Int.zero, gridSize)) return false;
+            return cells[coordinates.x, coordinates.y, coordinates.z];
+        }
+
+        private void SetWallState(Vector3Int coordinates, FaceAxis faceAxis, bool isPresent)
+        {
+            if (!coordinates.IsInRange(Vector3Int.zero, gridSize + Vector3Int.one))
+            {
+                throw new ArgumentOutOfRangeException();
+            }
+
+            var wall = new GridWall(coordinates, faceAxis);
+
+            if (isPresent)
+            {
+                allWalls.Add(wall);
+            }
+            else
+            {
+                allWalls.Remove(wall);
+            }
+
+            // TODO - handle wallsAdded and wallsRemoved
+        }
+
         private void Awake()
         {
             
