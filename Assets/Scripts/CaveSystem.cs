@@ -160,11 +160,11 @@ namespace GameU
 
     public class CaveSystem : MonoBehaviour
     {
-        [SerializeField] Vector3 cellSize = new(2f, 3f, 2f);
-        [SerializeField] Vector3Int gridSize = new(10, 1, 10);
+        [SerializeField] Vector3 cellSize = new(2f, 1.5f, 2f);
+        [SerializeField] Vector3Int gridSize = new(64, 8, 64);
         [SerializeField] int roomCount = 4;
         [SerializeField] bool randomRoomCenters = true;
-        [SerializeField] float wallThickness = 0.1f;
+        [SerializeField] float wallThickness = 0.3f;
         [SerializeField] Material wallMaterial;
         [SerializeField] Material floorCeilingMaterial;
         [SerializeField] Light lightPrefab;
