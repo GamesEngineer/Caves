@@ -469,7 +469,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &586032402
 Transform:
   m_ObjectHideFlags: 0
@@ -601,7 +601,7 @@ Light:
   m_Type: 0
   m_Shape: 0
   m_Color: {r: 1, g: 0.9822222, b: 0.9, a: 1}
-  m_Intensity: 0.15
+  m_Intensity: 0.25
   m_Range: 45
   m_SpotAngle: 179
   m_InnerSpotAngle: 45
@@ -800,7 +800,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   moveSpeed: 5
   turnSpeed: 2
+  lookSensitivity: 5
   caves: {fileID: 1122212758}
+  face: {fileID: 961383489}
 --- !u!1 &1122212757
 GameObject:
   m_ObjectHideFlags: 0
@@ -871,7 +873,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1158033085
 Transform:
   m_ObjectHideFlags: 0

@@ -5,12 +5,17 @@ public class Player : MonoBehaviour
 {
     [SerializeField, Range(0.1f, 10f)] float moveSpeed = 5f;
     [SerializeField, Range(0.1f, 10f)] float turnSpeed = 2f;
+    [SerializeField, Range(0.1f, 10f)] float lookSensitivity = 5f;
     [SerializeField] CaveSystem caves;
+    [SerializeField] Transform face;
 
     Vector3Int targetCoordinates;
     Vector3 targetPosition;
     Direction targetDirection = Direction.North;
     Vector3 targetForward;
+    Vector3 lookForward = Vector3.forward;
+    float yaw;
+    float pitch;
 
     private void Awake()
     {
@@ -47,8 +52,27 @@ public class Player : MonoBehaviour
             if (Input.GetKeyDown(KeyCode.S)) StepBackward();
         }
 
+        float maxTurnDelta = turnSpeed * Time.deltaTime * Mathf.PI;
         transform.position = Vector3.MoveTowards(transform.position, targetPosition, moveSpeed * Time.deltaTime);
-        transform.forward = Vector3.RotateTowards(transform.forward, targetForward, turnSpeed * Time.deltaTime * Mathf.PI, 1f);
+        transform.forward = Vector3.RotateTowards(transform.forward, targetForward, maxTurnDelta, 1f);
+
+        if (Input.GetMouseButton(0))
+        {
+            float mx = Input.GetAxis("Mouse X");
+            float my = Input.GetAxis("Mouse Y");
+            yaw += mx * lookSensitivity;
+            pitch -= my * lookSensitivity;
+            yaw = Mathf.Clamp(yaw, -45f, 45f);
+            pitch = Mathf.Clamp(pitch, -45f, 45f);
+            lookForward = Quaternion.Euler(pitch, yaw, 0f) * Vector3.forward;
+        }
+        else
+        {
+            yaw = 0f;
+            pitch = 0f;
+            lookForward = Vector3.RotateTowards(lookForward, Vector3.forward, maxTurnDelta, 1f);
+        }
+        face.forward = transform.rotation * lookForward;
     }
 
     private bool StepForward()
