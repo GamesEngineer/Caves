@@ -56,7 +56,12 @@ namespace GameU
 
             int r = UnityEngine.Random.Range(0, 6);
             Direction randomDirection = (Direction)(1 << r);
-            if (randomDirection != direction.OppositeDirection() && randomDirection != Direction.Up && randomDirection != Direction.Down)
+            if (randomDirection != direction.OppositeDirection()
+#if true
+                && randomDirection != Direction.Up
+                && randomDirection != Direction.Down
+#endif
+                )
             {
                 direction = randomDirection;
             }
@@ -246,11 +251,21 @@ namespace GameU
             return true;
         }
 
+        public bool TryExcavateStandingSpace(Vector3Int coordinates, ICollection<GridWall> wallsAdded = null, ICollection<GridWall> wallsRemoved = null)
+        {
+            bool okay = TryExcavateCell(coordinates, wallsAdded, wallsRemoved);
+            if (!okay) return false;
+            // Open the cell above. This assumes that character height is 2x cell height.
+            coordinates = coordinates.Step(Direction.Up);
+            TryExcavateCell(coordinates, wallsAdded, wallsRemoved); // it's okay for this to fail
+            return true;
+        }
+
         public bool TryExcavateWall(GridWall wall, ICollection<GridWall> wallsAdded = null, ICollection<GridWall> wallsRemoved = null)
         {
-            bool okay = TryExcavateCell(wall.coordinates, wallsAdded, wallsRemoved);
+            bool okay = TryExcavateStandingSpace(wall.coordinates, wallsAdded, wallsRemoved);
             Vector3Int otherSide = wall.coordinates.Step(wall.faceAxis.NegativeDirection());
-            okay |= TryExcavateCell(otherSide, wallsAdded, wallsRemoved);
+            okay |= TryExcavateStandingSpace(otherSide, wallsAdded, wallsRemoved);
             return okay;
         }
 
@@ -286,7 +301,7 @@ namespace GameU
             List<GridWall> wallsAdded = new();
             List<GridWall> wallsRemoved = new();
 
-            if (!TryExcavateCell(coordinates, wallsAdded, wallsRemoved))
+            if (!TryExcavateStandingSpace(coordinates, wallsAdded, wallsRemoved))
             {
                 yield break; // cannot make a volume at these coordinates
             }
@@ -318,10 +333,11 @@ namespace GameU
             Vector3Int center = halfBlockSize;
             // move the room's center to the its unique placement in the larger grid of rooms
             center.x += blockSize.x * (roomNumber % divisor);
+            center.y = 0;
             center.z += blockSize.z * (roomNumber / divisor);
 
             Vector3Int roomSize = Vector3Int.Max(blockSize / 2, Vector3Int.one);
-            int roomCellCount = roomSize.x * roomSize.y * roomSize.z;
+            int roomCellCount = 2 * roomSize.x * roomSize.y * roomSize.z;
 
             if (randomRoomCenters)
             {
@@ -341,15 +357,14 @@ namespace GameU
         private IEnumerator ExcavatePassage(Vector3Int fromCoordinates, Vector3Int toCoordinates)
         {
             Vector3Int c = fromCoordinates;
-            TryExcavateCell(c);
+            TryExcavateStandingSpace(c);
             int frame = Time.frameCount;
             int failSafe = gridSize.x + gridSize.y + gridSize.z;
             while (c != toCoordinates && failSafe-- >= 0)
             {
                 c = c.RandomStepTowards(toCoordinates);
                 c.Clamp(Vector3Int.zero, gridSize - Vector3Int.one);
-                TryExcavateCell(c);
-                TryExcavateCell(c.Step(Direction.Up)); // Assumes that character height is 2x cell height
+                TryExcavateStandingSpace(c);
                 // Time slice
                 if (Time.frameCount != frame)
                 {
@@ -486,12 +501,13 @@ namespace GameU
 
         private void Illuminate()
         {
-            foreach (var room in roomCenters)
+            foreach (Vector3Int roomCoordinates in roomCenters)
             {
-                Vector3 position = GetCellFacePosition(room, Direction.None);
+                Vector3Int coordinates = roomCoordinates.Step(Direction.Up);
+                Vector3 position = GetCellFacePosition(coordinates, Direction.None);
                 Light light = Instantiate(lightPrefab, position, Quaternion.identity);
                 light.transform.parent = transform;
-                light.name = $"Light {room}";
+                light.name = $"Light {coordinates}";
             }
         }
 
