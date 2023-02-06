@@ -2,138 +2,13 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using UnityEngine;
 
 namespace GameU
 {
-    public enum FaceAxis : byte
+    internal static class ExtensionMethods
     {
-        WestEast,
-        DownUp,
-        SouthNorth,
-    }
-
-    [Flags]
-    public enum Direction : byte
-    {
-        None = 0,
-
-        West = 0b_000001,
-        Down = 0b_000010,
-        South = 0b_000100,
-
-        East = 0b_001000,
-        Up = 0b_010000,
-        North = 0b_100000,
-
-        All = 0b_111111,
-    }
-
-    internal static class ExtensionsMethods
-    {
-        public static Vector3Int Step(this Vector3Int coordinates, Direction direction) => direction switch
-        {
-            Direction.None => coordinates,
-            Direction.West => coordinates + Vector3Int.left,
-            Direction.East => coordinates + Vector3Int.right,
-            Direction.Down => coordinates + Vector3Int.down,
-            Direction.Up => coordinates + Vector3Int.up,
-            Direction.South => coordinates + Vector3Int.back,
-            Direction.North => coordinates + Vector3Int.forward,
-            _ => throw new InvalidOperationException(),
-        };
-
-        public static Vector3Int RandomStepTowards(this Vector3Int coordinates, Vector3Int toCoordinates)
-        {
-            Direction direction = Direction.None;
-            Vector3Int delta = toCoordinates - coordinates;
-            if      (delta.x < 0) direction = Direction.West;
-            else if (delta.x > 0) direction = Direction.East;
-            else if (delta.y < 0) direction = Direction.Down;
-            else if (delta.y > 0) direction = Direction.Up;
-            else if (delta.z < 0) direction = Direction.South;
-            else if (delta.z > 0) direction = Direction.North;
-
-            int r = UnityEngine.Random.Range(0, 6);
-            Direction randomDirection = (Direction)(1 << r);
-            if (randomDirection != direction.OppositeDirection()
-#if true
-                && randomDirection != Direction.Up
-                && randomDirection != Direction.Down
-#endif
-                )
-            {
-                direction = randomDirection;
-            }
-
-            return coordinates.Step(direction);
-        }
-
-        public static bool IsInRange(this Vector3Int a, Vector3Int min, Vector3Int max)
-        {
-            if (min.x > max.x) (min.x, max.x) = (max.x, min.x);
-            if (min.y > max.y) (min.y, max.y) = (max.y, min.y);
-            if (min.z > max.z) (min.z, max.z) = (max.z, min.z);
-            if (a.x < min.x || a.x >= max.x) return false;
-            if (a.y < min.y || a.y >= max.y) return false;
-            if (a.z < min.z || a.z >= max.z) return false;
-            return true;
-        }
-
-        public static FaceAxis ToFaceAxis(this Direction direction)
-        {
-            return direction switch
-            {
-                Direction.West => FaceAxis.WestEast,
-                Direction.East => FaceAxis.WestEast,
-                Direction.Down => FaceAxis.DownUp,
-                Direction.Up => FaceAxis.DownUp,
-                Direction.South => FaceAxis.SouthNorth,
-                Direction.North => FaceAxis.SouthNorth,
-                _ => throw new InvalidOperationException(),
-            };
-        }
-
-        public static Direction NegativeDirection(this FaceAxis faceAxis) => (Direction)(1 << (int)faceAxis);
-
-        public static Direction PositiveDirection(this FaceAxis faceAxis) => (Direction)(1 << ((int)faceAxis + 3));
-
-        public static Direction OppositeDirection(this Direction direction) => direction switch
-        {
-            Direction.None => Direction.None,
-            Direction.West => Direction.East,
-            Direction.East => Direction.West,
-            Direction.Down => Direction.Up,
-            Direction.Up => Direction.Down,
-            Direction.South => Direction.North,
-            Direction.North => Direction.South,
-            _ => throw new InvalidOperationException(),
-        };
-
-        public static Direction TurnLeft(this Direction direction) => direction switch
-        {
-            Direction.None => Direction.None,
-            Direction.West => Direction.South,
-            Direction.East => Direction.North,
-            Direction.Down => Direction.Down,
-            Direction.Up => Direction.Up,
-            Direction.South => Direction.East,
-            Direction.North => Direction.West,
-            _ => throw new InvalidOperationException(),
-        };
-        
-        public static Direction TurnRight(this Direction direction) => direction switch
-        {
-            Direction.None => Direction.None,
-            Direction.West => Direction.North,
-            Direction.East => Direction.South,
-            Direction.Down => Direction.Down,
-            Direction.Up => Direction.Up,
-            Direction.South => Direction.West,
-            Direction.North => Direction.East,
-            _ => throw new InvalidOperationException(),
-        };
-
         public static bool GetRandomItem<ItemType>(this IReadOnlyCollection<ItemType> items, out ItemType randomItem, out int itemIndex)
         {
             itemIndex = -1;
@@ -151,35 +26,26 @@ namespace GameU
         }
     }
 
-    public readonly struct GridWall
-    {
-        public readonly Vector3Int coordinates; // walls at (x,y,z,*) are on the West, Down, and South sides of the cell at (x,y,z)
-        public readonly FaceAxis faceAxis; // axis is perpendicular to the face
-
-        public GridWall(Vector3Int coordinates, FaceAxis faceAxis)
-        {
-            this.coordinates = coordinates;
-            this.faceAxis = faceAxis;
-        }
-    }
-
     public class CaveSystem : MonoBehaviour
     {
-        [SerializeField] Vector3 cellSize = new(2f, 1.5f, 2f);
         [SerializeField] Vector3Int gridSize = new(64, 8, 64);
         [SerializeField] int roomCount = 4;
-        [SerializeField] bool randomRoomCenters = true;
-        [SerializeField] float wallThickness = 0.3f;
-        [SerializeField] Material wallMaterial;
-        [SerializeField] Material floorCeilingMaterial;
-        [SerializeField] Light lightPrefab;
+        [SerializeField, Range(0f, 1f)] float randomRoomCenters = 0.5f;
+        [SerializeField] bool windingPassages = true;
         [SerializeField, Tooltip("0 = randomize")] int seed = 0;
+        [SerializeField] bool createMaze;
+        [SerializeField] UnityEngine.UI.Image progressImage;
+
+        public int RoomCount => roomCount;
+        public GridMaze RoomsMaze { get; private set; }
+        public IReadOnlyCollection<GridWall> Walls => allWalls;
 
         public event Action OnCreated;
         
         private bool[/*X*/,/*Y*/,/*Z*/] cells; // false = closed, true = open
         private Vector3Int[] roomCenters; // "center" position of each room
         private readonly HashSet<GridWall> allWalls = new();
+        private const float COROUTINE_TIME_SLICE = 0.05f; // seconds
 
         public Vector3Int GetRoomCenter(int roomIndex) => roomCenters[roomIndex];
 
@@ -201,7 +67,19 @@ namespace GameU
             return cells[coordinates.x, coordinates.y, coordinates.z];
         }
 
-        private void SetWallState(Vector3Int coordinates, FaceAxis faceAxis, bool isPresent, ICollection<GridWall> wallsAdded, ICollection<GridWall> wallsRemoved)
+        public Vector3Int FindFloor(Vector3Int coordinates)
+        {
+            Vector3Int sample = coordinates.Step(Direction.Down);
+            while (IsCellOpen(sample))
+            {
+                coordinates = sample;
+                sample = sample.Step(Direction.Down);
+            }
+            return coordinates;
+        }
+
+        private void SetWallState(Vector3Int coordinates, FaceAxis faceAxis, bool isPresent,
+            ICollection<GridWall> wallsAdded = null, ICollection<GridWall> wallsRemoved = null)
         {
             if (!coordinates.IsInRange(Vector3Int.zero, gridSize + Vector3Int.one))
             {
@@ -213,16 +91,16 @@ namespace GameU
             if (isPresent)
             {
                 allWalls.Add(wall);
-                if (wallsAdded is not null) wallsAdded.Add(wall);
+                wallsAdded?.Add(wall);
             }
             else
             {
                 allWalls.Remove(wall);
-                if (wallsRemoved is not null) wallsRemoved.Add(wall);
+                wallsRemoved?.Add(wall);
             }
         }
 
-        public bool TryExcavateCell(Vector3Int coordinates, ICollection<GridWall> wallsAdded = null, ICollection<GridWall> wallsRemoved = null)
+        private bool TryExcavateCell(Vector3Int coordinates, ICollection<GridWall> wallsAdded = null, ICollection<GridWall> wallsRemoved = null)
         {
             if (!coordinates.IsInRange(Vector3Int.zero, gridSize))
             {
@@ -251,7 +129,7 @@ namespace GameU
             return true;
         }
 
-        public bool TryExcavateStandingSpace(Vector3Int coordinates, ICollection<GridWall> wallsAdded = null, ICollection<GridWall> wallsRemoved = null)
+        private bool TryExcavateStandingSpace(Vector3Int coordinates, ICollection<GridWall> wallsAdded = null, ICollection<GridWall> wallsRemoved = null)
         {
             bool okay = TryExcavateCell(coordinates, wallsAdded, wallsRemoved);
             if (!okay) return false;
@@ -261,30 +139,11 @@ namespace GameU
             return true;
         }
 
-        public bool TryExcavateWall(GridWall wall, ICollection<GridWall> wallsAdded = null, ICollection<GridWall> wallsRemoved = null)
+        private bool TryExcavateWall(GridWall wall, ICollection<GridWall> wallsAdded = null, ICollection<GridWall> wallsRemoved = null)
         {
-            bool okay = TryExcavateStandingSpace(wall.coordinates, wallsAdded, wallsRemoved);
-            Vector3Int otherSide = wall.coordinates.Step(wall.faceAxis.NegativeDirection());
-            okay |= TryExcavateStandingSpace(otherSide, wallsAdded, wallsRemoved);
+            bool okay = TryExcavateStandingSpace(wall.PositiveSide, wallsAdded, wallsRemoved);
+            okay |= TryExcavateStandingSpace(wall.NegativeSide, wallsAdded, wallsRemoved);
             return okay;
-        }
-
-        public bool TryGetFloorPosition(ref Vector3Int coordinates, out Vector3 floorPosition)
-        {
-            floorPosition = Vector3.zero;
-            if (!IsCellOpen(coordinates)) return false;
-
-            // Find the floor cell
-            Vector3Int c = coordinates;
-            while (c.y > 0)
-            {
-                c.y--;
-                if (!IsCellOpen(c)) break;
-                coordinates = c;
-            }
-
-            floorPosition = GetCellFacePosition(coordinates, Direction.Down) + Vector3.up * wallThickness;
-            return true;
         }
 
         private void UpdateSetOfWalls(HashSet<GridWall> wallSet, ICollection<GridWall> wallsAdded, ICollection<GridWall> wallsRemoved)
@@ -295,7 +154,7 @@ namespace GameU
             wallsRemoved.Clear();
         }
 
-        public IEnumerator ExcavateVolume(Vector3Int coordinates, int maxCellCount)
+        private IEnumerator ExcavateVolume(Vector3Int coordinates, int maxCellCount)
         {
             HashSet<GridWall> wallsOfVolume = new();
             List<GridWall> wallsAdded = new();
@@ -307,25 +166,27 @@ namespace GameU
             }
             UpdateSetOfWalls(wallsOfVolume, wallsAdded, wallsRemoved);
 
-            int frame = Time.frameCount;
+            float time = Time.realtimeSinceStartup;
             for (int i = 0; i < maxCellCount; i++)
             {
                 if (!wallsOfVolume.GetRandomItem(out GridWall wall, out _)) break;
                 TryExcavateWall(wall, wallsAdded, wallsRemoved);
                 UpdateSetOfWalls(wallsOfVolume, wallsAdded, wallsRemoved);
 
-                // Time slice
-                if (Time.frameCount != frame)
+                // TIME SLICE
+                // Periodically give control back to Unity's update loop,
+                // so that the app remains interactive and avoid freezing.
+                if (Time.realtimeSinceStartup - time > COROUTINE_TIME_SLICE)
                 {
+                    time = Time.realtimeSinceStartup;
                     yield return null;
-                    frame = Time.frameCount;
                 }
             }
         }
 
         private IEnumerator ExcavateRoom(int roomNumber)
         {
-            int divisor = Mathf.CeilToInt(Mathf.Sqrt((float)(roomCenters.Length)));
+            int divisor = Mathf.CeilToInt(Mathf.Sqrt(roomCount));
             Vector3Int blockSize = gridSize / divisor;
             blockSize = Vector3Int.Max(blockSize, Vector3Int.one);
             Vector3Int halfBlockSize = blockSize / 2;
@@ -339,10 +200,14 @@ namespace GameU
             Vector3Int roomSize = Vector3Int.Max(blockSize / 2, Vector3Int.one);
             int roomCellCount = 2 * roomSize.x * roomSize.y * roomSize.z;
 
-            if (randomRoomCenters)
+            if (randomRoomCenters > 0f)
             {
-                Vector3Int minInclusive = center - roomSize;
-                Vector3Int maxExclusive = center + roomSize + Vector3Int.one;
+                Vector3Int wiggle = new Vector3Int(
+                    (int)(roomSize.x * randomRoomCenters),
+                    (int)(roomSize.y * randomRoomCenters),
+                    (int)(roomSize.z * randomRoomCenters));
+                Vector3Int minInclusive = center - wiggle;
+                Vector3Int maxExclusive = center + wiggle + Vector3Int.one;
                 minInclusive.Clamp(Vector3Int.zero, gridSize);
                 maxExclusive.Clamp(Vector3Int.zero, gridSize);
                 center = GetRandomCell(minInclusive, maxExclusive);
@@ -358,157 +223,115 @@ namespace GameU
         {
             Vector3Int c = fromCoordinates;
             TryExcavateStandingSpace(c);
-            int frame = Time.frameCount;
-            int failSafe = gridSize.x + gridSize.y + gridSize.z;
-            while (c != toCoordinates && failSafe-- >= 0)
+            float time = Time.realtimeSinceStartup;
+
+            int failSafe = gridSize.x + gridSize.y + gridSize.z * 10;
+            int passageLength = 0;
+            while ((c.x != toCoordinates.x || c.z != toCoordinates.z) && passageLength < failSafe)
             {
-                c = c.RandomStepTowards(toCoordinates);
-                c.Clamp(Vector3Int.zero, gridSize - Vector3Int.one);
+                if (windingPassages)
+                {
+                    Direction allowedDirections = Direction.All;
+                    // Disallow jumping out of holes
+                    if (IsCellOpen(c.Step(Direction.Down))) allowedDirections &= ~Direction.Up;
+                    // Disallow digging deep holes
+                    if (IsCellOpen(c.Step(Direction.Up, 2))) allowedDirections &= ~Direction.Down;                    
+                    c = c.RandomOrthogonalStepTowards(toCoordinates, allowedDirections);
+                }
+                else
+                {
+                    c = c.LateralOrthogonalStepTowards(toCoordinates);
+                }
+                // TODO - disallow oscillating between adjacent cells
+                c.Clamp(Vector3Int.zero, gridSize - Vector3Int.one * 2);
                 TryExcavateStandingSpace(c);
-                // Time slice
-                if (Time.frameCount != frame)
+                passageLength++;
+                // TIME SLICE
+                // Periodically give control back to Unity's update loop,
+                // so that the app remains interactive and avoid freezing.
+                if (Time.realtimeSinceStartup - time > COROUTINE_TIME_SLICE)
                 {
+                    time = Time.realtimeSinceStartup;
                     yield return null;
-                    frame = Time.frameCount;
                 }
             }
-        }
-
-        private GameObject CreateWallObject(GridWall wall, Transform wallParent)
-        {
-            var wallObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            wallObj.transform.parent = wallParent;
-            wallObj.name = $"Wall {wall.coordinates} {wall.faceAxis}";
-            wallObj.GetComponent<Renderer>().material = (wall.faceAxis == FaceAxis.DownUp) ? floorCeilingMaterial : wallMaterial;
-            SetWallTransform(wall, wallObj.transform, wallThickness);
-            return wallObj;
-        }
-
-        private void SetWallTransform(GridWall wall, Transform wallTransform, float wallThickness)
-        {
-            Vector3 halfStep = cellSize / 2f;
-            Vector3 position = wall.coordinates;
-            position.Scale(cellSize);
-            Vector3 scale = cellSize;
-            switch (wall.faceAxis)
-            {
-                case FaceAxis.WestEast:
-                    position += new Vector3(0f, halfStep.y, halfStep.z);
-                    scale.x *= wallThickness;
-                    break;
-
-                case FaceAxis.DownUp:
-                    position += new Vector3(halfStep.x, 0f, halfStep.z);
-                    scale.y *= wallThickness;
-                    break;
-
-                case FaceAxis.SouthNorth:
-                    position += new Vector3(halfStep.x, halfStep.y, 0f);
-                    scale.z *= wallThickness;
-                    break;
-
-                default:
-                    throw new InvalidEnumArgumentException();
-            }
-            wallTransform.transform.position = position;
-            wallTransform.transform.localScale = scale;
-        }
-
-        private bool RemoveWallObject(GridWall wall, Transform wallParent)
-        {
-            for (int i=0; i< wallParent.childCount; i++)
-            {
-                Transform child = wallParent.GetChild(i);
-                Vector3 position = GetWallPosition(wall);
-                if (Vector3.SqrMagnitude(child.position - position) < 0.1f)
-                {
-                    Destroy(child.gameObject);
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        private Vector3 GetCellPosition(Vector3Int coordinates)
-        {
-            Vector3 offset = new((float)coordinates.x + 0.5f, (float)coordinates.y + 0.5f, (float)coordinates.z + 0.5f);
-            offset.Scale(cellSize);
-            return transform.position + offset;
-        }
-
-        private Vector3 GetCellFacePosition(Vector3Int coordinates, Direction direction)
-        {
-            Vector3 position = GetCellPosition(coordinates);
-            Vector3 halfStep = cellSize / 2f;
-            if (direction.HasFlag(Direction.North)) position.z += halfStep.z;
-            if (direction.HasFlag(Direction.South)) position.z -= halfStep.z;
-            if (direction.HasFlag(Direction.Up)) position.y += halfStep.y;
-            if (direction.HasFlag(Direction.Down)) position.y -= halfStep.y;
-            if (direction.HasFlag(Direction.East)) position.x += halfStep.x;
-            if (direction.HasFlag(Direction.West)) position.x -= halfStep.x;
-            return position;
-        }
-        
-        private Vector3 GetWallPosition(GridWall wall)
-        {
-            Vector3 halfStep = cellSize / 2f;
-            Vector3 position = wall.coordinates;
-            position.Scale(cellSize);
-            switch (wall.faceAxis)
-            {
-                case FaceAxis.WestEast:
-                    position += new Vector3(0f, halfStep.y, halfStep.z);
-                    break;
-
-                case FaceAxis.DownUp:
-                    position += new Vector3(halfStep.x, 0f, halfStep.z);
-                    break;
-
-                case FaceAxis.SouthNorth:
-                    position += new Vector3(halfStep.x, halfStep.y, 0f);
-                    break;
-
-                default:
-                    throw new InvalidEnumArgumentException();
-            }
-            return position;
+            print($"created passage of length {passageLength}");
         }
 
         private IEnumerator Excavate()
         {
+            progressImage.fillAmount = 0f;
+            progressImage.gameObject.SetActive(true);
+            yield return null;
+
             for (int roomNumber = 0; roomNumber < roomCount; roomNumber++)
             {
+                progressImage.fillAmount = roomNumber / (float)roomCount;
                 yield return ExcavateRoom(roomNumber);
             }
 
-            // excavate passages between rooms
-            // TODO - use a modified maze algorithm
-            for (int toRoom = 1; toRoom < roomCount; toRoom++)
+            progressImage.fillAmount = 1f;
+            yield return null;
+
+            // excavate passages between rooms with a maze algorithm
+            int width = Mathf.CeilToInt(Mathf.Sqrt(roomCount));
+            Vector3Int mazeSize = new(width, 1, width);
+            RoomsMaze = new(mazeSize);
+            RoomsMaze.Generate();
+
+            for (int z = 0; z < width; z++)
             {
-                int fromRoom = toRoom - 1;
-                yield return ExcavatePassage(roomCenters[fromRoom], roomCenters[toRoom]);
+                for (int x = 0; x < width; x++)
+                {
+                    Vector3Int fromRoomCoords = new(x, 0, z);
+                    int fromRoom = x + z * width;
+                    if (fromRoom >= roomCount)
+                    {
+                        continue;
+                    }
+
+                    progressImage.fillAmount = fromRoom / (float)roomCount;
+
+                    Vector3Int west = fromRoomCoords.Step(Direction.West);
+                    Vector3Int south = fromRoomCoords.Step(Direction.South);
+                    GridWall westWall = new GridWall(fromRoomCoords, FaceAxis.WestEast);
+                    GridWall southWall = new GridWall(fromRoomCoords, FaceAxis.SouthNorth);
+
+                    if (!RoomsMaze.Walls.Contains(westWall))
+                    {
+                        int westRoom = west.x + west.z * width;
+                        if (westRoom < 0)
+                        {
+                            continue;
+                        }
+                        Vector3Int a = roomCenters[fromRoom];
+                        Vector3Int b = roomCenters[westRoom];
+                        a = FindFloor(a);
+                        b = FindFloor(b);
+                        yield return ExcavatePassage(a, b);
+                    }                  
+                    
+                    if (!RoomsMaze.Walls.Contains(southWall))
+                    {
+                        int southRoom = south.x + south.z * width;
+                        if (southRoom < 0)
+                        {
+                            continue;
+                        }
+                        Vector3Int a = roomCenters[fromRoom];
+                        Vector3Int b = roomCenters[southRoom];
+                        a = FindFloor(a);
+                        b = FindFloor(b);
+                        yield return ExcavatePassage(a, b);
+                    }                   
+                }
             }
 
-            foreach (GridWall wall in allWalls)
-            {
-                CreateWallObject(wall, transform);
-            }
-
-            Illuminate();
+            progressImage.color = Color.white;
+            progressImage.fillAmount = 1f;
+            yield return null;
 
             OnCreated?.Invoke();
-        }
-
-        private void Illuminate()
-        {
-            foreach (Vector3Int roomCoordinates in roomCenters)
-            {
-                Vector3Int coordinates = roomCoordinates.Step(Direction.Up);
-                Vector3 position = GetCellFacePosition(coordinates, Direction.None);
-                Light light = Instantiate(lightPrefab, position, Quaternion.identity);
-                light.transform.parent = transform;
-                light.name = $"Light {coordinates}";
-            }
         }
 
         private void Awake()
@@ -521,7 +344,30 @@ namespace GameU
 
         private void Start()
         {
-            StartCoroutine(Excavate());
+            if (createMaze)
+            {
+                StartCoroutine(CreateTestMaze());
+            }
+            else
+            {
+                StartCoroutine(Excavate());
+            }
+        }
+
+        private IEnumerator CreateTestMaze()
+        {
+            gridSize.y = 1;
+            float time = Time.realtimeSinceStartup;
+            RoomsMaze = new(gridSize);
+            RoomsMaze.Generate();
+            print($"Maze generated {RoomsMaze.Walls.Count} walls in {Time.realtimeSinceStartup - time} seconds");
+            yield return null;
+
+            allWalls.UnionWith(RoomsMaze.Walls.Where(w => w.faceAxis != FaceAxis.DownUp));
+            print($"{allWalls.Count} walls remaining");
+            yield return null;
+
+            OnCreated?.Invoke();
         }
     }
 }

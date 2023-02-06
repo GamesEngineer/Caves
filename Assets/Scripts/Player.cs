@@ -7,6 +7,7 @@ public class Player : MonoBehaviour
     [SerializeField, Range(0.1f, 10f)] float turnSpeed = 2f;
     [SerializeField, Range(0.1f, 10f)] float lookSensitivity = 5f;
     [SerializeField] CaveSystem caves;
+    [SerializeField] CaveWalls caveWalls;
     [SerializeField] Transform face;
 
     Vector3Int targetCoordinates;
@@ -31,7 +32,7 @@ public class Player : MonoBehaviour
     private void Caves_OnCreated()
     {
         Vector3Int c = caves.GetRoomCenter(0);
-        if (caves.TryGetFloorPosition(ref c, out Vector3 floorPosition))
+        if (caveWalls.TryGetFloorPosition(ref c, out Vector3 floorPosition))
         {
             targetCoordinates = c;
             targetPosition = floorPosition;
@@ -43,11 +44,15 @@ public class Player : MonoBehaviour
 
     void Update()
     {
+        if (Input.GetKeyDown(KeyCode.Escape)) QuitGame();
+
         if (Vector3.Distance(targetPosition, transform.position) < 0.01f &&
             Vector3.Angle(targetForward, transform.forward) < 1f)
         {
-            if (Input.GetKeyDown(KeyCode.A)) TurnLeft();
-            if (Input.GetKeyDown(KeyCode.D)) TurnRight();
+            if (Input.GetKeyDown(KeyCode.Q)) TurnLeft();
+            if (Input.GetKeyDown(KeyCode.E)) TurnRight();
+            if (Input.GetKeyDown(KeyCode.A)) StepLeft();
+            if (Input.GetKeyDown(KeyCode.D)) StepRight();
             if (Input.GetKeyDown(KeyCode.W)) StepForward();
             if (Input.GetKeyDown(KeyCode.S)) StepBackward();
         }
@@ -78,12 +83,12 @@ public class Player : MonoBehaviour
     private bool StepForward()
     {
         Vector3Int c = targetCoordinates.Step(targetDirection);
-        if (!caves.TryGetFloorPosition(ref c, out Vector3 floorPosition))
+        if (!caveWalls.TryGetFloorPosition(ref c, out Vector3 floorPosition))
         {
             // If there is a wall in front us, try to climb it
             Vector3Int up = c.Step(Direction.Up);
             c = up;
-            if (!caves.TryGetFloorPosition(ref c, out floorPosition))
+            if (!caveWalls.TryGetFloorPosition(ref c, out floorPosition))
             {
                 return false;
             }
@@ -100,7 +105,30 @@ public class Player : MonoBehaviour
     private bool StepBackward()
     {
         Vector3Int c = targetCoordinates.Step(targetDirection.OppositeDirection());
-        if (!caves.TryGetFloorPosition(ref c, out Vector3 floorPosition))
+        if (!caveWalls.TryGetFloorPosition(ref c, out Vector3 floorPosition))
+        {
+            return false;
+        }
+        targetCoordinates = c;
+        targetPosition = floorPosition;
+        return true;
+    }
+    
+    private bool StepLeft()
+    {
+        Vector3Int c = targetCoordinates.Step(targetDirection.TurnLeft());
+        if (!caveWalls.TryGetFloorPosition(ref c, out Vector3 floorPosition))
+        {
+            return false;
+        }
+        targetCoordinates = c;
+        targetPosition = floorPosition;
+        return true;
+    }
+    private bool StepRight()
+    {
+        Vector3Int c = targetCoordinates.Step(targetDirection.TurnRight());
+        if (!caveWalls.TryGetFloorPosition(ref c, out Vector3 floorPosition))
         {
             return false;
         }
@@ -119,5 +147,14 @@ public class Player : MonoBehaviour
     {
         targetDirection = targetDirection.TurnRight();
         targetForward = targetCoordinates.Step(targetDirection) - targetCoordinates;
+    }
+
+    private void QuitGame()
+    {
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
+        Application.Quit();
+#endif
     }
 }
