@@ -139,19 +139,16 @@ namespace GameU
             return true;
         }
 
-        public static FaceAxis ToFaceAxis(this Direction direction)
+        public static FaceAxis ToFaceAxis(this Direction direction) => direction switch
         {
-            return direction switch
-            {
-                Direction.West => FaceAxis.WestEast,
-                Direction.East => FaceAxis.WestEast,
-                Direction.Down => FaceAxis.DownUp,
-                Direction.Up => FaceAxis.DownUp,
-                Direction.South => FaceAxis.SouthNorth,
-                Direction.North => FaceAxis.SouthNorth,
-                _ => throw new InvalidOperationException(),
-            };
-        }
+            Direction.West => FaceAxis.WestEast,
+            Direction.East => FaceAxis.WestEast,
+            Direction.Down => FaceAxis.DownUp,
+            Direction.Up => FaceAxis.DownUp,
+            Direction.South => FaceAxis.SouthNorth,
+            Direction.North => FaceAxis.SouthNorth,
+            _ => throw new InvalidOperationException(),
+        };
 
         public static Direction NegativeDirection(this FaceAxis faceAxis) => (Direction)(1 << (int)faceAxis);
 

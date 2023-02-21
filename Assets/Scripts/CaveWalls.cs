@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace GameU
 {
@@ -12,9 +13,7 @@ namespace GameU
         [SerializeField] float wallThickness = 0.3f;
         [SerializeField] Material wallMaterial;
         [SerializeField] Material floorCeilingMaterial;
-        [SerializeField] UnityEngine.UI.Image progressImage;
-
-        [SerializeField] Light lightPrefab;
+        [SerializeField] Image progressImage;
 
         private CaveSystem caves;
 
@@ -33,7 +32,6 @@ namespace GameU
         private void Caves_OnCreated()
         {
             StartCoroutine(CreateWalls(caves.Walls));
-            Illuminate();
         }
 
         public void CreateMazeWalls(IReadOnlyCollection<GridWall> walls)
@@ -71,19 +69,6 @@ namespace GameU
             progressImage.fillAmount = 1f;
             yield return null;
             progressImage.gameObject.SetActive(false);
-        }
-
-        private void Illuminate()
-        {
-            for (int roomIndex = 0; roomIndex < caves.RoomCount; roomIndex++)
-            {
-                Vector3Int roomCoordinates = caves.GetRoomCenter(roomIndex);
-                Vector3Int coordinates = roomCoordinates.Step(Direction.Up);
-                Vector3 position = GetCellFacePosition(coordinates, Direction.None);
-                Light light = Instantiate(lightPrefab, position, Quaternion.identity);
-                light.transform.parent = transform;
-                light.name = $"Light {coordinates}";
-            }
         }
 
         public bool TryGetFloorPosition(ref Vector3Int coordinates, out Vector3 floorPosition)
