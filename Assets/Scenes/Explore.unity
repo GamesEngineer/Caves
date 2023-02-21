@@ -985,6 +985,7 @@ GameObject:
   - component: {fileID: 1122212759}
   - component: {fileID: 1122212758}
   - component: {fileID: 1122212760}
+  - component: {fileID: 1122212761}
   m_Layer: 0
   m_Name: Caves
   m_TagString: Untagged
@@ -1044,6 +1045,18 @@ MonoBehaviour:
   floorCeilingMaterial: {fileID: 2100000, guid: f4ba3841c1fbb3e4a8eee8560345578f,
     type: 2}
   progressImage: {fileID: 1969018949}
+--- !u!114 &1122212761
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1122212757}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 875017b59ed766a429cd1261036ffdc9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
   lightPrefab: {fileID: 8114303401274090493, guid: 9830ecc0c87f7a04389afe788be93724,
     type: 3}
 --- !u!1 &1158033084
