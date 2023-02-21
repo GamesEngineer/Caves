@@ -185,6 +185,7 @@ namespace GameU
             // Ignore exterior walls for the frontier, since they can never be removed.
             if (!IsExteriorWall(wall))
             {
+                Debug.Assert(!frontierWalls.Contains(wall));
                 frontierWalls.Add(wall);
             }
         }

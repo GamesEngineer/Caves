@@ -37,6 +37,7 @@ namespace GameU
         [SerializeField] UnityEngine.UI.Image progressImage;
 
         public int RoomCount => roomCount;
+        public Vector3Int GridSize => gridSize;
         public GridMaze RoomsMaze { get; private set; }
         public IReadOnlyCollection<GridWall> Walls => allWalls;
 
@@ -67,6 +68,8 @@ namespace GameU
             return cells[coordinates.x, coordinates.y, coordinates.z];
         }
 
+        public bool IsStandingSpaceOpen(Vector3Int coordinates) => IsCellOpen(coordinates) && IsCellOpen(coordinates.Step(Direction.Up));
+
         public Vector3Int FindFloor(Vector3Int coordinates)
         {
             Vector3Int sample = coordinates.Step(Direction.Down);
@@ -76,6 +79,16 @@ namespace GameU
                 sample = sample.Step(Direction.Down);
             }
             return coordinates;
+        }
+
+        public int FindFloorHeight(int x, int z)
+        {
+            Vector3Int sample = new(x, 0, z);
+            while (sample.y < GridSize.y && !IsCellOpen(sample))
+            {
+                sample = sample.Step(Direction.Up);
+            }
+            return sample.y;
         }
 
         private void SetWallState(Vector3Int coordinates, FaceAxis faceAxis, bool isPresent,
@@ -125,6 +138,35 @@ namespace GameU
             Vector3Int north = coordinates.Step(Direction.North);
             SetWallState(coordinates, FaceAxis.SouthNorth, !IsCellOpen(south), wallsAdded, wallsRemoved);
             SetWallState(north, FaceAxis.SouthNorth, !IsCellOpen(north), wallsAdded, wallsRemoved);
+
+            return true;
+        }
+        
+        private bool TryCloseCell(Vector3Int coordinates, ICollection<GridWall> wallsAdded = null, ICollection<GridWall> wallsRemoved = null)
+        {
+            if (!coordinates.IsInRange(Vector3Int.zero, gridSize))
+            {
+                return false;
+            }
+
+            // Close the new cell
+            cells[coordinates.x, coordinates.y, coordinates.z] = false;
+
+            // Update neighboring walls
+            Vector3Int west = coordinates.Step(Direction.West);
+            Vector3Int east = coordinates.Step(Direction.East);
+            SetWallState(coordinates, FaceAxis.WestEast, IsCellOpen(west), wallsAdded, wallsRemoved);
+            SetWallState(east, FaceAxis.WestEast, IsCellOpen(east), wallsAdded, wallsRemoved);
+
+            Vector3Int down = coordinates.Step(Direction.Down);
+            Vector3Int up = coordinates.Step(Direction.Up);
+            SetWallState(coordinates, FaceAxis.DownUp, IsCellOpen(down), wallsAdded, wallsRemoved);
+            SetWallState(up, FaceAxis.DownUp, IsCellOpen(up), wallsAdded, wallsRemoved);
+
+            Vector3Int south = coordinates.Step(Direction.South);
+            Vector3Int north = coordinates.Step(Direction.North);
+            SetWallState(coordinates, FaceAxis.SouthNorth, IsCellOpen(south), wallsAdded, wallsRemoved);
+            SetWallState(north, FaceAxis.SouthNorth, IsCellOpen(north), wallsAdded, wallsRemoved);
 
             return true;
         }
@@ -235,7 +277,7 @@ namespace GameU
                     // Disallow jumping out of holes
                     if (IsCellOpen(c.Step(Direction.Down))) allowedDirections &= ~Direction.Up;
                     // Disallow digging deep holes
-                    if (IsCellOpen(c.Step(Direction.Up, 2))) allowedDirections &= ~Direction.Down;                    
+                    if (IsCellOpen(c.Step(Direction.Up, 2))) allowedDirections &= ~Direction.Down;
                     c = c.RandomOrthogonalStepTowards(toCoordinates, allowedDirections);
                 }
                 else
@@ -245,6 +287,7 @@ namespace GameU
                 // TODO - disallow oscillating between adjacent cells
                 c.Clamp(Vector3Int.zero, gridSize - Vector3Int.one * 2);
                 TryExcavateStandingSpace(c);
+                //FillHole(c);
                 passageLength++;
                 // TIME SLICE
                 // Periodically give control back to Unity's update loop,
@@ -332,6 +375,17 @@ namespace GameU
             yield return null;
 
             OnCreated?.Invoke();
+        }
+
+        public void FillHole(Vector3Int coordinates)
+        {
+            Vector3Int c = coordinates;
+            c.y = -1;
+            while (c.y < coordinates.y && c.y < gridSize.y)
+            {
+                TryCloseCell(c);
+                c = c.Step(Direction.Up);
+            }
         }
 
         private void Awake()

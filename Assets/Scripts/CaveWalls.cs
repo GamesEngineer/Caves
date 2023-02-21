@@ -87,6 +87,7 @@ namespace GameU
                 light.name = $"Light {coordinates}";
             }
         }
+
         public bool TryGetFloorPosition(ref Vector3Int coordinates, out Vector3 floorPosition)
         {
             floorPosition = Vector3.zero;
