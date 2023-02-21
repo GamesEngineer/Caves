@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using UnityEngine;
 
 namespace Lesson
@@ -109,12 +110,15 @@ namespace Lesson
         [SerializeField] Vector3Int gridSize = new Vector3Int(64, 8, 64);
         [SerializeField] float wallThickness = 0.3f;
         [SerializeField, Tooltip("0 = randomize")] int seed = 0;
+        [SerializeField, Range(0f, 1f)] float randomRoomCenters = 0.5f;
+        [SerializeField] bool windingPassages = false;
         
         // just for testing
         [SerializeField] bool createMaze;
 
         private bool[/*X*/,/*Y*/,/*Z*/] cells; // false = closed, true = open
         private readonly HashSet<GridWall> allWalls = new HashSet<GridWall>();
+        private Vector3Int[] roomCenters; // "center" position of each room in the cave system
 
         public bool IsCellOpen(Vector3Int coordinates)
         {
@@ -183,7 +187,13 @@ namespace Lesson
         private void Awake()
         {
             cells = new bool[gridSize.x, gridSize.y, gridSize.z];
-            if (seed == 0) seed = (int)DateTime.Now.Ticks;
+            
+            roomCenters = new Vector3Int[roomCount]; // TODO - START HERE! Thurs 02/23/2023
+
+            if (seed == 0)
+            {
+                seed = (int)DateTime.Now.Ticks;
+            }
             UnityEngine.Random.InitState(seed);
         }
 
@@ -255,7 +265,11 @@ namespace Lesson
 
         private IEnumerator CreateMaze()
         {
-            // TODO - use the Maze clas
+            Maze maze = new Maze(gridSize);
+
+            var justVerticalWalls = maze.Walls.Where(wall => wall.faceAxis != FaceAxis.DownUp);
+            allWalls.UnionWith(justVerticalWalls);
+
             yield return CreateAllWallObjects();
         }
 
@@ -274,7 +288,7 @@ namespace Lesson
         private IEnumerator ExcavateRoom(int roomNumber)
         {
             GetRoomCenterAndSize(roomNumber, out Vector3Int center, out Vector3Int roomSize);
-            // TODO - remember room center
+            roomCenters[roomNumber] = center;
             int roomCellCount = roomSize.x * roomSize.y * roomSize.z;
             yield return ExcavateVolume(center, roomCellCount); // TODO - limit excavation to min/max
             print($"Room {roomNumber} has {roomCellCount} cells placed at {center} with a max size of {roomSize}");
@@ -302,16 +316,19 @@ namespace Lesson
 
         private void GetRoomCenterAndSize(int roomNumber, out Vector3Int center, out Vector3Int roomSize)
         {
-            int divisor = 1; // TODO - compute divisor with Mathf.CeilToInt(Mathf.Sqrt((float)(roomCenters.Length)));
-            Vector3Int blockSize = gridSize / divisor;
+            int gridWidth = Mathf.CeilToInt(Mathf.Sqrt(roomCount));
+            Vector3Int blockSize = gridSize / gridWidth;
             blockSize = Vector3Int.Max(blockSize, Vector3Int.one);
             Vector3Int halfBlockSize = blockSize / 2;
             roomSize = Vector3Int.Max(halfBlockSize, Vector3Int.one);
             center = halfBlockSize;
             // move the room's center to the its unique placement in the larger grid of rooms
-            center.x += blockSize.x * (roomNumber % divisor);
+            int row = roomNumber / gridWidth;
+            int column = roomNumber % gridWidth;
+            center.x += blockSize.x * column;
             center.y = 0;
-            center.z += blockSize.z * (roomNumber / divisor);
+            center.z += blockSize.z * row;
+
             // TODO - randomize room center within the block
         }
 

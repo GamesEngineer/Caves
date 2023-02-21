@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Random = UnityEngine.Random;
@@ -12,15 +11,15 @@ namespace Lesson
         // https://en.wikipedia.org/wiki/Maze_generation_algorithm#Randomized_Prim's_algorithm
 
         public Vector3Int GridSize { get; private set; }
-        public bool[,,] Cells { get; private set; }
         public HashSet<GridWall> Walls { get; private set; }
 
+        private readonly bool[,,] cells;
         private readonly List<GridWall> frontierWalls;
 
         public Maze(Vector3Int gridSize)
         {
             GridSize = gridSize;
-            Cells = new bool[gridSize.x, gridSize.y, gridSize.z]; // false = closed, true is open
+            cells = new bool[gridSize.x, gridSize.y, gridSize.z]; // false = closed, true is open
             Walls = new HashSet<GridWall>();
             frontierWalls = new List<GridWall>();
 
@@ -43,25 +42,38 @@ namespace Lesson
 
         private bool TakeRandomWallFromFrontier(out GridWall wall)
         {
-            // TODO - finish implementing
-            wall = default;
-            return false;
+            if (frontierWalls.Count == 0)
+            {
+                wall = default;
+                return false;
+            }
+
+            int index = Random.Range(0, frontierWalls.Count);
+            wall = frontierWalls[index];
+            frontierWalls.RemoveAt(index);
+            return true;
         }
 
-        public bool IsCellOpen(Vector3Int coordinates) =>
+        private bool IsCellOpen(Vector3Int coordinates) =>
             coordinates.IsInRange(Vector3Int.zero, GridSize) &&
-            Cells[coordinates.x, coordinates.y, coordinates.z];
+            cells[coordinates.x, coordinates.y, coordinates.z];
 
         private bool OpenCell(Vector3Int coordinates)
         {
             // Can't open cells that are outside of the grid
-            // TODO - finish implementing
+            if (!coordinates.IsInRange(Vector3Int.zero, GridSize))
+            {
+                return false;
+            }
 
             // Can't open cells that are already opened
-            // TODO - finish implementing
+            if (cells[coordinates.x, coordinates.y, coordinates.z])
+            {
+                return false;
+            }
 
             // Open cell
-            Cells[coordinates.x, coordinates.y, coordinates.z] = true;
+            cells[coordinates.x, coordinates.y, coordinates.z] = true;
 
             // Add the cells neighboring walls
             Vector3Int west = coordinates.Step(Direction.West);
