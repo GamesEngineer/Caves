@@ -627,13 +627,13 @@ MonoBehaviour:
   m_GameObject: {fileID: 2032025129}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e5326b831d236ea489fe83fc4764f5c0, type: 3}
+  m_Script: {fileID: 11500000, guid: 54e9d41b349816240bd9e5f05296f97f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   cellSize: {x: 2, y: 1.5, z: 2}
   gridSize: {x: 32, y: 8, z: 32}
   wallThickness: 0.3
-  seed: 123
+  seed: 0
   randomRoomCenters: 0.5
   windingPassages: 0
   createMaze: 0
