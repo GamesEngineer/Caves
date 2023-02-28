@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Linq;
 using UnityEngine;
 
@@ -29,14 +28,14 @@ namespace GameU
     public class CaveSystem : MonoBehaviour
     {
         [SerializeField] Vector3Int gridSize = new(64, 8, 64);
-        [SerializeField] int roomCount = 4;
+        [SerializeField, Range(1, 7)] int mazeWidth = 4;
         [SerializeField, Range(0f, 1f)] float randomRoomCenters = 0.5f;
         [SerializeField] bool windingPassages = true;
         [SerializeField, Tooltip("0 = randomize")] int seed = 0;
         [SerializeField] bool createMaze;
         [SerializeField] UnityEngine.UI.Image progressImage;
 
-        public int RoomCount => roomCount;
+        public int RoomCount => mazeWidth * mazeWidth;
         public Vector3Int GridSize => gridSize;
         public GridMaze RoomsMaze { get; private set; }
         public IReadOnlyCollection<GridWall> Walls => allWalls;
@@ -228,23 +227,22 @@ namespace GameU
 
         private IEnumerator ExcavateRoom(int roomNumber)
         {
-            int divisor = Mathf.CeilToInt(Mathf.Sqrt(roomCount));
-            Vector3Int blockSize = gridSize / divisor;
+            Vector3Int blockSize = gridSize / mazeWidth;
             blockSize = Vector3Int.Max(blockSize, Vector3Int.one);
             Vector3Int halfBlockSize = blockSize / 2;
 
             Vector3Int center = halfBlockSize;
             // move the room's center to the its unique placement in the larger grid of rooms
-            center.x += blockSize.x * (roomNumber % divisor);
+            center.x += blockSize.x * (roomNumber % mazeWidth);
             center.y = 0;
-            center.z += blockSize.z * (roomNumber / divisor);
+            center.z += blockSize.z * (roomNumber / mazeWidth);
 
             Vector3Int roomSize = Vector3Int.Max(blockSize / 2, Vector3Int.one);
             int roomCellCount = 2 * roomSize.x * roomSize.y * roomSize.z;
 
             if (randomRoomCenters > 0f)
             {
-                Vector3Int wiggle = new Vector3Int(
+                Vector3Int wiggle = new(
                     (int)(roomSize.x * randomRoomCenters),
                     (int)(roomSize.y * randomRoomCenters),
                     (int)(roomSize.z * randomRoomCenters));
@@ -301,72 +299,59 @@ namespace GameU
             print($"created passage of length {passageLength}");
         }
 
+        private IEnumerator ExcavatePassageBetweenRoomCenters(int roomA, int roomB)
+        {
+            Vector3Int a = roomCenters[roomA];
+            Vector3Int b = roomCenters[roomB];
+            a = FindFloor(a);
+            b = FindFloor(b);
+            yield return ExcavatePassage(a, b);
+        }
+
         private IEnumerator Excavate()
         {
             progressImage.fillAmount = 0f;
             progressImage.gameObject.SetActive(true);
             yield return null;
 
-            for (int roomNumber = 0; roomNumber < roomCount; roomNumber++)
+            for (int roomNumber = 0; roomNumber < RoomCount; roomNumber++)
             {
-                progressImage.fillAmount = roomNumber / (float)roomCount;
+                progressImage.fillAmount = roomNumber / (float)RoomCount;
                 yield return ExcavateRoom(roomNumber);
             }
 
             progressImage.fillAmount = 1f;
             yield return null;
 
-            // excavate passages between rooms with a maze algorithm
-            int width = Mathf.CeilToInt(Mathf.Sqrt(roomCount));
-            Vector3Int mazeSize = new(width, 1, width);
+            // Excavate passages between rooms with a maze algorithm
+            Vector3Int mazeSize = new(mazeWidth, 1, mazeWidth);
             RoomsMaze = new(mazeSize);
             RoomsMaze.Generate();
 
-            for (int z = 0; z < width; z++)
+            // Visit each room and excavate a passage to its west and south
+            // neighbor rooms, only if there is no maze wall between them.
+            for (int fromRoom = 0; fromRoom < RoomCount; fromRoom++)
             {
-                for (int x = 0; x < width; x++)
+                progressImage.fillAmount = fromRoom / (float)RoomCount;
+
+                int x = fromRoom % mazeWidth;
+                int z = fromRoom / mazeWidth;
+                Vector3Int fromRoomCoords = new(x, 0, z);
+
+                GridWall westWall = new(fromRoomCoords, FaceAxis.WestEast);
+                if (!RoomsMaze.Walls.Contains(westWall))
                 {
-                    Vector3Int fromRoomCoords = new(x, 0, z);
-                    int fromRoom = x + z * width;
-                    if (fromRoom >= roomCount)
-                    {
-                        continue;
-                    }
-
-                    progressImage.fillAmount = fromRoom / (float)roomCount;
-
                     Vector3Int west = fromRoomCoords.Step(Direction.West);
-                    Vector3Int south = fromRoomCoords.Step(Direction.South);
-                    GridWall westWall = new GridWall(fromRoomCoords, FaceAxis.WestEast);
-                    GridWall southWall = new GridWall(fromRoomCoords, FaceAxis.SouthNorth);
+                    int westRoom = west.x + west.z * mazeWidth;
+                    yield return ExcavatePassageBetweenRoomCenters(fromRoom, westRoom);
+                }
 
-                    if (!RoomsMaze.Walls.Contains(westWall))
-                    {
-                        int westRoom = west.x + west.z * width;
-                        if (westRoom < 0)
-                        {
-                            continue;
-                        }
-                        Vector3Int a = roomCenters[fromRoom];
-                        Vector3Int b = roomCenters[westRoom];
-                        a = FindFloor(a);
-                        b = FindFloor(b);
-                        yield return ExcavatePassage(a, b);
-                    }                  
-                    
-                    if (!RoomsMaze.Walls.Contains(southWall))
-                    {
-                        int southRoom = south.x + south.z * width;
-                        if (southRoom < 0)
-                        {
-                            continue;
-                        }
-                        Vector3Int a = roomCenters[fromRoom];
-                        Vector3Int b = roomCenters[southRoom];
-                        a = FindFloor(a);
-                        b = FindFloor(b);
-                        yield return ExcavatePassage(a, b);
-                    }                   
+                GridWall southWall = new(fromRoomCoords, FaceAxis.SouthNorth);
+                if (!RoomsMaze.Walls.Contains(southWall))
+                {
+                    Vector3Int south = fromRoomCoords.Step(Direction.South);
+                    int southRoom = south.x + south.z * mazeWidth;
+                    yield return ExcavatePassageBetweenRoomCenters(fromRoom, southRoom);
                 }
             }
 
@@ -391,7 +376,7 @@ namespace GameU
         private void Awake()
         {
             cells = new bool[gridSize.x, gridSize.y, gridSize.z];
-            roomCenters = new Vector3Int[roomCount];
+            roomCenters = new Vector3Int[RoomCount];
             if (seed == 0) seed = (int)DateTime.Now.Ticks;
             UnityEngine.Random.InitState(seed);
         }
