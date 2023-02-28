@@ -392,7 +392,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1246673088}
   m_LocalRotation: {x: 0.7071068, y: 0, z: 0, w: 0.7071068}
-  m_LocalPosition: {x: 8, y: 16, z: 8}
+  m_LocalPosition: {x: 32, y: 64, z: 32}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -631,16 +631,16 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   cellSize: {x: 2, y: 1.5, z: 2}
-  gridSize: {x: 32, y: 8, z: 32}
+  gridSize: {x: 64, y: 8, z: 64}
   wallThickness: 0.3
-  seed: 0
+  seed: 222
   randomRoomCenters: 0.5
   windingPassages: 0
-  createMaze: 0
-  roomCount: 3
+  roomCount: 7
   wallMaterial: {fileID: 2100000, guid: aea59646a06712e4fbd44ca7cabb2b7a, type: 2}
   floorCeilingMaterial: {fileID: 2100000, guid: f4ba3841c1fbb3e4a8eee8560345578f,
     type: 2}
+  createMaze: 0
 --- !u!4 &2032025131
 Transform:
   m_ObjectHideFlags: 0

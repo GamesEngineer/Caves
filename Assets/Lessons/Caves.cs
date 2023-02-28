@@ -112,9 +112,14 @@ namespace Lesson
         [SerializeField, Tooltip("0 = randomize")] int seed = 0;
         [SerializeField, Range(0f, 1f)] float randomRoomCenters = 0.5f;
         [SerializeField] bool windingPassages = false;
-        
+        [SerializeField] int roomCount = 1;
+        [SerializeField] Material wallMaterial;
+        [SerializeField] Material floorCeilingMaterial;
+
         // just for testing
         [SerializeField] bool createMaze;
+
+        const float COROUTINE_TIME_SLICE = 0.05f; // seconds
 
         private bool[/*X*/,/*Y*/,/*Z*/] cells; // false = closed, true = open
         private readonly HashSet<GridWall> allWalls = new HashSet<GridWall>();
@@ -257,12 +262,6 @@ namespace Lesson
             return true;
         }
 
-        [SerializeField] int roomCount = 1;
-        [SerializeField] Material wallMaterial;
-        [SerializeField] Material floorCeilingMaterial;
-
-        const float COROUTINE_TIME_SLICE = 0.05f; // seconds
-
         private IEnumerator CreateMaze()
         {
             Maze maze = new Maze(gridSize);
@@ -329,7 +328,33 @@ namespace Lesson
             center.y = 0;
             center.z += blockSize.z * row;
 
-            // TODO - randomize room center within the block
+            if (randomRoomCenters > 0f)
+            {
+                Vector3Int wiggle = new Vector3Int(
+                    (int)(roomSize.x * randomRoomCenters),
+                    (int)(roomSize.y * randomRoomCenters),
+                    (int)(roomSize.z * randomRoomCenters));
+                Vector3Int minInclusive = center - wiggle;
+                Vector3Int maxExclusive = center + wiggle + Vector3Int.one;
+                minInclusive.Clamp(Vector3Int.zero, gridSize);
+                maxExclusive.Clamp(Vector3Int.zero, gridSize);
+                center = GetRandomCell(minInclusive, maxExclusive);
+            }
+        }
+
+        /// <summary>
+        /// Returns a random coordinate between the minimum and maximum corners.
+        /// </summary>
+        /// <param name="min">inclusive</param>
+        /// <param name="max">exclusive</param>
+        /// <returns></returns>
+        public static Vector3Int GetRandomCell(Vector3Int min, Vector3Int max)
+        {
+            Vector3Int coordindates = new Vector3Int(
+                UnityEngine.Random.Range(min.x, max.x),
+                UnityEngine.Random.Range(min.y, max.y),
+                UnityEngine.Random.Range(min.z, max.z));
+            return coordindates;
         }
 
         public IEnumerator ExcavateVolume(Vector3Int coordinates, int maxCellCount)
