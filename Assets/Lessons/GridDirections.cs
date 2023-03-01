@@ -1,6 +1,4 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace Lessons
@@ -53,5 +51,18 @@ namespace Lessons
 
         public static Direction NegativeDirection(this FaceAxis faceAxis) => (Direction)faceAxis & Direction.Negative;
         public static Direction PositiveDirection(this FaceAxis faceAxis) => (Direction)faceAxis & Direction.Positive;
+
+        public static bool IsInRange(this Vector3Int a, Vector3Int min, Vector3Int max)
+        {
+            if (min.x > max.x) (min.x, max.x) = (max.x, min.x);
+            if (min.y > max.y) (min.y, max.y) = (max.y, min.y);
+            if (min.z > max.z) (min.z, max.z) = (max.z, min.z);
+
+            if (a.x < min.x || a.x >= max.x) return false;
+            if (a.y < min.y || a.y >= max.y) return false;
+            if (a.z < min.z || a.z >= max.z) return false;
+
+            return true;
+        }
     }
 }
