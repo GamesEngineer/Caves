@@ -1008,7 +1008,7 @@ MonoBehaviour:
   gridSize: {x: 100, y: 12, z: 100}
   mazeWidth: 4
   randomRoomCenters: 0.4
-  windingPassages: 1
+  windingPassages: 0
   seed: 0
   createMaze: 0
   progressImage: {fileID: 1969018949}
@@ -1441,6 +1441,7 @@ MonoBehaviour:
   mapRadius: 12
   playerColor: {r: 0.5, g: 1, b: 0.56674623, a: 1}
   bigMap: 0
+  showEntireMap: 0
 --- !u!222 &1791576224
 CanvasRenderer:
   m_ObjectHideFlags: 0
