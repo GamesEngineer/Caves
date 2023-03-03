@@ -631,12 +631,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   cellSize: {x: 2, y: 1.5, z: 2}
-  gridSize: {x: 64, y: 8, z: 64}
+  gridSize: {x: 100, y: 8, z: 100}
   wallThickness: 0.3
-  seed: 222
+  seed: 0
   randomRoomCenters: 0.5
   windingPassages: 0
-  roomCount: 7
+  roomCount: 9
   wallMaterial: {fileID: 2100000, guid: aea59646a06712e4fbd44ca7cabb2b7a, type: 2}
   floorCeilingMaterial: {fileID: 2100000, guid: f4ba3841c1fbb3e4a8eee8560345578f,
     type: 2}

@@ -1,3 +1,4 @@
+using GameU;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -5,7 +6,7 @@ using System.ComponentModel;
 using System.Linq;
 using UnityEngine;
 
-namespace Lesson
+namespace Lessons
 {
     [Flags]
     public enum Direction : byte
@@ -42,6 +43,8 @@ namespace Lesson
             return (Direction)(1 << ((int)faceAxis + 3));
         }
 
+        // TODO - public static Direction OppositeDirection(this Direction direction)   
+
         public static Vector3Int Step(this Vector3Int coordinates, Direction direction) 
         {
             return direction switch
@@ -56,6 +59,12 @@ namespace Lesson
                 _ => throw new ArgumentException(),
             };
         }
+
+        // TODO - public static Direction TurnLeft(this Direction direction)
+
+        // TODO - public static Direction TurnRight(this Direction direction)
+
+        // TODO - public static Vector3Int RandomStep(this Vector3Int coordinates, Direction allowedDirections = Direction.All)
 
         public static bool IsInRange(this Vector3Int a, Vector3Int min, Vector3Int max)
         {
@@ -87,27 +96,39 @@ namespace Lesson
             randomItem = iterator.Current;
             return true;
         }
-    }
 
-    public readonly struct GridWall
-    {
-        public readonly Vector3Int coordinates; // walls at (x,y,z,*) are on the West, Down, and South sides of the cell at (x,y,z)
-        public readonly FaceAxis faceAxis; // axis is perpendicular to the face
-
-        public GridWall(Vector3Int coordinates, FaceAxis faceAxis)
+        public static Direction LateralDirectionTowards(this Vector3Int coordinates, Vector3Int targetCoordinates)
         {
-            this.coordinates = coordinates;
-            this.faceAxis = faceAxis;
+            Vector3Int delta = targetCoordinates - coordinates;
+            delta.y = 0; // ignore vertical differences
+            Vector3Int absDelta = new Vector3Int(Mathf.Abs(delta.x), 0, Mathf.Abs(delta.z));
+            int maxDelta = (absDelta.x > absDelta.z) ? absDelta.x : absDelta.z;
+            if (maxDelta == 0) return Direction.None;
+            Direction direction;
+            if (delta.x <= -maxDelta) direction = Direction.West;
+            else if (delta.x >= maxDelta) direction = Direction.East;
+            else if (delta.z <= -maxDelta) direction = Direction.South;
+            else direction = Direction.North;
+            return direction;
         }
 
-        public Vector3Int PositiveSide => coordinates;
-        public Vector3Int NegativeSide => coordinates.Step(faceAxis.NegativeDirection());
+        public static Vector3Int LateralStepTowards(this Vector3Int coordinates, Vector3Int targetCoordinates)
+        {
+            Direction direction = coordinates.LateralDirectionTowards(targetCoordinates);
+            return coordinates.Step(direction);
+        }
+
+        // TODO - public static Direction DirectionTowards(this Vector3Int coordinates, Vector3Int targetCoordinates)
+
+        // TODO - public static Vector3Int RandomStepTowards(this Vector3Int coordinates, Vector3Int targetCoordinates, Direction allowedDirections = Direction.All)
+
+        // TODO - public static int CountBits(uint bits)
     }
 
     public class Caves : MonoBehaviour
     {
         [SerializeField] Vector3 cellSize = new(2f, 1.5f, 2f);
-        [SerializeField] Vector3Int gridSize = new Vector3Int(64, 8, 64);
+        [SerializeField] Vector3Int gridSize = new(64, 8, 64);
         [SerializeField] float wallThickness = 0.3f;
         [SerializeField, Tooltip("0 = randomize")] int seed = 0;
         [SerializeField, Range(0f, 1f)] float randomRoomCenters = 0.5f;
@@ -122,7 +143,7 @@ namespace Lesson
         const float COROUTINE_TIME_SLICE = 0.05f; // seconds
 
         private bool[/*X*/,/*Y*/,/*Z*/] cells; // false = closed, true = open
-        private readonly HashSet<GridWall> allWalls = new HashSet<GridWall>();
+        private readonly HashSet<GridWall> allWalls = new();
         private Vector3Int[] roomCenters; // "center" position of each room in the cave system
 
         public bool IsCellOpen(Vector3Int coordinates)
@@ -191,10 +212,8 @@ namespace Lesson
 
         private void Awake()
         {
-            cells = new bool[gridSize.x, gridSize.y, gridSize.z];
-            
-            roomCenters = new Vector3Int[roomCount]; // TODO - START HERE! Thurs 02/23/2023
-
+            cells = new bool[gridSize.x, gridSize.y, gridSize.z];            
+            roomCenters = new Vector3Int[roomCount];
             if (seed == 0)
             {
                 seed = (int)DateTime.Now.Ticks;
@@ -219,56 +238,11 @@ namespace Lesson
 
         /************************************************************************/
 
-        public bool TryExcavateStandingSpace(Vector3Int coordinates,
-            ICollection<GridWall> wallsAdded = null,
-            ICollection<GridWall> wallsRemoved = null)
-        {
-            bool okay = TryExcavateCell(coordinates, wallsAdded, wallsRemoved);
-            if (!okay) return false;
-            // Open the cell above. This assumes that character height is 2x cell height.
-            coordinates = coordinates.Step(Direction.Up);
-            TryExcavateCell(coordinates, wallsAdded, wallsRemoved); // it's okay for this to fail
-            return true;
-        }
-
-        public bool TryExcavateCell(Vector3Int coordinates,
-            ICollection<GridWall> wallsAdded = null,
-            ICollection<GridWall> wallsRemoved = null)
-        {
-            if (!coordinates.IsInRange(Vector3Int.zero, gridSize))
-            {
-                return false;
-            }
-
-            // Open the new cell
-            cells[coordinates.x, coordinates.y, coordinates.z] = true;
-
-            // Update neighboring walls
-            Vector3Int west = coordinates.Step(Direction.West);
-            Vector3Int east = coordinates.Step(Direction.East);
-            SetWallState(coordinates, FaceAxis.WestEast, !IsCellOpen(west), wallsAdded, wallsRemoved);
-            SetWallState(east, FaceAxis.WestEast, !IsCellOpen(east), wallsAdded, wallsRemoved);
-
-            Vector3Int down = coordinates.Step(Direction.Down);
-            Vector3Int up = coordinates.Step(Direction.Up);
-            SetWallState(coordinates, FaceAxis.DownUp, !IsCellOpen(down), wallsAdded, wallsRemoved);
-            SetWallState(up, FaceAxis.DownUp, !IsCellOpen(up), wallsAdded, wallsRemoved);
-
-            Vector3Int south = coordinates.Step(Direction.South);
-            Vector3Int north = coordinates.Step(Direction.North);
-            SetWallState(coordinates, FaceAxis.SouthNorth, !IsCellOpen(south), wallsAdded, wallsRemoved);
-            SetWallState(north, FaceAxis.SouthNorth, !IsCellOpen(north), wallsAdded, wallsRemoved);
-
-            return true;
-        }
-
         private IEnumerator CreateMaze()
         {
-            Maze maze = new Maze(gridSize);
-
+            GridMaze maze = new(gridSize);
             var justVerticalWalls = maze.Walls.Where(wall => wall.faceAxis != FaceAxis.DownUp);
             allWalls.UnionWith(justVerticalWalls);
-
             yield return CreateAllWallObjects();
         }
 
@@ -280,6 +254,7 @@ namespace Lesson
             }
 
             // TODO - excavate passages between rooms
+            yield return ExcavatePassageBetweenRoomCenters(0, 1);
 
             yield return CreateAllWallObjects();
         }
@@ -403,6 +378,49 @@ namespace Lesson
             return okay;
         }
 
+        public bool TryExcavateStandingSpace(Vector3Int coordinates,
+            ICollection<GridWall> wallsAdded = null,
+            ICollection<GridWall> wallsRemoved = null)
+        {
+            bool okay = TryExcavateCell(coordinates, wallsAdded, wallsRemoved);
+            if (!okay) return false;
+            // Open the cell above. This assumes that character height is 2x cell height.
+            coordinates = coordinates.Step(Direction.Up);
+            TryExcavateCell(coordinates, wallsAdded, wallsRemoved); // it's okay for this to fail
+            return true;
+        }
+
+        public bool TryExcavateCell(Vector3Int coordinates,
+            ICollection<GridWall> wallsAdded = null,
+            ICollection<GridWall> wallsRemoved = null)
+        {
+            if (!coordinates.IsInRange(Vector3Int.zero, gridSize))
+            {
+                return false;
+            }
+
+            // Open the new cell
+            cells[coordinates.x, coordinates.y, coordinates.z] = true;
+
+            // Update neighboring walls
+            Vector3Int west = coordinates.Step(Direction.West);
+            Vector3Int east = coordinates.Step(Direction.East);
+            SetWallState(coordinates, FaceAxis.WestEast, !IsCellOpen(west), wallsAdded, wallsRemoved);
+            SetWallState(east, FaceAxis.WestEast, !IsCellOpen(east), wallsAdded, wallsRemoved);
+
+            Vector3Int down = coordinates.Step(Direction.Down);
+            Vector3Int up = coordinates.Step(Direction.Up);
+            SetWallState(coordinates, FaceAxis.DownUp, !IsCellOpen(down), wallsAdded, wallsRemoved);
+            SetWallState(up, FaceAxis.DownUp, !IsCellOpen(up), wallsAdded, wallsRemoved);
+
+            Vector3Int south = coordinates.Step(Direction.South);
+            Vector3Int north = coordinates.Step(Direction.North);
+            SetWallState(coordinates, FaceAxis.SouthNorth, !IsCellOpen(south), wallsAdded, wallsRemoved);
+            SetWallState(north, FaceAxis.SouthNorth, !IsCellOpen(north), wallsAdded, wallsRemoved);
+
+            return true;
+        }
+
         private void UpdateSetOfWalls(HashSet<GridWall> wallSet,
             ICollection<GridWall> wallsAdded,
             ICollection<GridWall> wallsRemoved)
@@ -411,6 +429,35 @@ namespace Lesson
             wallSet.ExceptWith(wallsRemoved);
             wallsAdded.Clear();
             wallsRemoved.Clear();
+        }
+
+        private IEnumerator ExcavatePassageBetweenRoomCenters(int roomA, int roomB)
+        {
+            Vector3Int a = roomCenters[roomA];
+            Vector3Int b = roomCenters[roomB];
+            // TODO find floors at a and b
+            yield return ExcavatePassage(a, b);
+        }
+
+        private IEnumerator ExcavatePassage(Vector3Int fromCoordinates, Vector3Int toCoordinates)
+        {
+            TryExcavateStandingSpace(fromCoordinates);
+            Vector3Int c = fromCoordinates;
+            float time = Time.realtimeSinceStartup;
+            int failSafe = (gridSize.x + gridSize.y + gridSize.z) * 10;
+            int passageLength = 0;
+            while ((c.x != toCoordinates.x || c.z != toCoordinates.z) && passageLength < failSafe)
+            {
+                c = c.LateralStepTowards(toCoordinates);
+                TryExcavateStandingSpace(c);
+                passageLength++;
+
+                if (Time.realtimeSinceStartup - time > COROUTINE_TIME_SLICE)
+                {
+                    time = Time.realtimeSinceStartup;
+                    yield return null;
+                }
+            }
         }
     }
 }

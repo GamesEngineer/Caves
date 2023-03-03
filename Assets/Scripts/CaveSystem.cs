@@ -264,29 +264,31 @@ namespace GameU
             Vector3Int c = fromCoordinates;
             TryExcavateStandingSpace(c);
             float time = Time.realtimeSinceStartup;
-
             int failSafe = gridSize.x + gridSize.y + gridSize.z * 10;
             int passageLength = 0;
-            while ((c.x != toCoordinates.x || c.z != toCoordinates.z) && passageLength < failSafe)
+            while ((c.x != toCoordinates.x || c.z != toCoordinates.z) &&
+                passageLength < failSafe)
             {
-                if (windingPassages)
-                {
+                if (windingPassages) // CHALLENGE! implement winding passages on your own
+                {                    
                     Direction allowedDirections = Direction.All;
-                    // Disallow jumping out of holes
+                    // Disallow flying (but climbing out of a hole is okay)
                     if (IsCellOpen(c.Step(Direction.Down))) allowedDirections &= ~Direction.Up;
                     // Disallow digging deep holes
                     if (IsCellOpen(c.Step(Direction.Up, 2))) allowedDirections &= ~Direction.Down;
-                    c = c.RandomOrthogonalStepTowards(toCoordinates, allowedDirections);
+                    c = c.RandomStepTowards(toCoordinates, allowedDirections);
                 }
-                else
+                else // LESSON - keep it simple and just do lateral passages
                 {
-                    c = c.LateralOrthogonalStepTowards(toCoordinates);
+                    c = c.LateralStepTowards(toCoordinates);
                 }
                 // TODO - disallow oscillating between adjacent cells
                 c.Clamp(Vector3Int.zero, gridSize - Vector3Int.one * 2);
                 TryExcavateStandingSpace(c);
+
                 //FillHole(c);
                 passageLength++;
+
                 // TIME SLICE
                 // Periodically give control back to Unity's update loop,
                 // so that the app remains interactive and avoid freezing.
@@ -325,7 +327,7 @@ namespace GameU
 
             // Excavate passages between rooms with a maze algorithm
             Vector3Int mazeSize = new(mazeWidth, 1, mazeWidth);
-            RoomsMaze = new(mazeSize);
+            RoomsMaze = new GridMaze(mazeSize);
             RoomsMaze.Generate();
 
             // Visit each room and excavate a passage to its west and south
