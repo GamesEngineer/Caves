@@ -3,13 +3,6 @@ using UnityEngine;
 
 namespace GameU
 {
-    public enum FaceAxis : byte
-    {
-        WestEast,
-        DownUp,
-        SouthNorth,
-    }
-
     [Flags]
     public enum Direction : byte
     {
@@ -26,7 +19,21 @@ namespace GameU
         Lateral = Direction.West | Direction.East | Direction.South | Direction.North,
         Vertical = Direction.Down | Direction.Up,
 
+        WestEast = Direction.West | Direction.East,
+        DownUp = Direction.Down | Direction.Up,
+        SouthNorth = Direction.South | Direction.North,
+
+        Negative = Direction.West | Direction.Down | Direction.South,
+        Positive = Direction.East | Direction.Up | Direction.North,
+
         All = 0b_111111,
+    }
+
+    public enum FaceAxis : byte
+    {
+        WestEast = Direction.WestEast,
+        DownUp = Direction.DownUp,
+        SouthNorth = Direction.SouthNorth,
     }
 
     static class ExtensionsMethods
@@ -140,21 +147,16 @@ namespace GameU
             _ => throw new InvalidOperationException(),
         };
 
-        public static Direction NegativeDirection(this FaceAxis faceAxis) => (Direction)(1 << (int)faceAxis);
+        public static Direction NegativeDirection(this FaceAxis faceAxis) => (Direction)faceAxis & Direction.Negative;
 
-        public static Direction PositiveDirection(this FaceAxis faceAxis) => (Direction)(1 << ((int)faceAxis + 3));
+        public static Direction PositiveDirection(this FaceAxis faceAxis) => (Direction)faceAxis & Direction.Positive;
 
-        public static Direction OppositeDirection(this Direction direction) => direction switch
+        public static Direction OppositeDirection(this Direction direction)
         {
-            Direction.None => Direction.None,
-            Direction.West => Direction.East,
-            Direction.East => Direction.West,
-            Direction.Down => Direction.Up,
-            Direction.Up => Direction.Down,
-            Direction.South => Direction.North,
-            Direction.North => Direction.South,
-            _ => throw new InvalidOperationException(),
-        };
+            Direction n = direction & Direction.Negative;
+            Direction p = direction & Direction.Positive;
+            return (Direction)(((int)n << 3) | ((int)p >> 3));
+        }
 
         public static Direction TurnLeft(this Direction direction) => direction switch
         {

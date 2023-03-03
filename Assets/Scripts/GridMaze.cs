@@ -71,43 +71,43 @@ namespace GameU
             if (!ignoreDirections.HasFlag(Direction.West))
             {
                 Vector3Int west = coordinates.Step(Direction.West);
-                GridWall westWall = new GridWall(coordinates, FaceAxis.WestEast);
-                if (allWalls.Contains(westWall)) yield return west;
+                GridWall westWall = new(coordinates, FaceAxis.WestEast);
+                if (!allWalls.Contains(westWall)) yield return west;
             }
 
             if (!ignoreDirections.HasFlag(Direction.East))
             {
                 Vector3Int east = coordinates.Step(Direction.East);
-                GridWall eastWall = new GridWall(east, FaceAxis.WestEast);
-                if (allWalls.Contains(eastWall)) yield return east;
+                GridWall eastWall = new(east, FaceAxis.WestEast);
+                if (!allWalls.Contains(eastWall)) yield return east;
             }
 
             if (!ignoreDirections.HasFlag(Direction.South))
             {
                 Vector3Int south = coordinates.Step(Direction.South);
-                GridWall southWall = new GridWall(coordinates, FaceAxis.SouthNorth);
-                if (allWalls.Contains(southWall)) yield return south;
+                GridWall southWall = new(coordinates, FaceAxis.SouthNorth);
+                if (!allWalls.Contains(southWall)) yield return south;
             }
 
             if (!ignoreDirections.HasFlag(Direction.North))
             {
                 Vector3Int north = coordinates.Step(Direction.North);
-                GridWall northWall = new GridWall(north, FaceAxis.SouthNorth);
-                if (allWalls.Contains(northWall)) yield return north;
+                GridWall northWall = new(north, FaceAxis.SouthNorth);
+                if (!allWalls.Contains(northWall)) yield return north;
             }
 
             if (!ignoreDirections.HasFlag(Direction.Down))
             {
                 Vector3Int down = coordinates.Step(Direction.Down);
-                GridWall downWall = new GridWall(coordinates, FaceAxis.DownUp);
-                if (allWalls.Contains(downWall)) yield return down;
+                GridWall downWall = new(coordinates, FaceAxis.DownUp);
+                if (!allWalls.Contains(downWall)) yield return down;
             }
 
             if (!ignoreDirections.HasFlag(Direction.Up))
             {
                 Vector3Int up = coordinates.Step(Direction.Up);
-                GridWall upWall = new GridWall(up, FaceAxis.DownUp);
-                if (allWalls.Contains(upWall)) yield return up;
+                GridWall upWall = new(up, FaceAxis.DownUp);
+                if (!allWalls.Contains(upWall)) yield return up;
             }
         }
 
@@ -149,7 +149,7 @@ namespace GameU
                 return false;
             }
 
-            // Open the cell
+            // Mark the cell as "open"
             cells[coordinates.x, coordinates.y, coordinates.z] = true;
 
             // Add the cell's neighboring walls
@@ -160,10 +160,10 @@ namespace GameU
             Vector3Int south = coordinates.Step(Direction.South);
             Vector3Int north = coordinates.Step(Direction.North);
 
-            if (!IsCellOpen(west)) AddWall(coordinates, FaceAxis.WestEast);
-            if (!IsCellOpen(east)) AddWall(east, FaceAxis.WestEast);
-            if (!IsCellOpen(down)) AddWall(coordinates, FaceAxis.DownUp);
-            if (!IsCellOpen(up)) AddWall(up, FaceAxis.DownUp);
+            if (!IsCellOpen(west))  AddWall(coordinates, FaceAxis.WestEast);
+            if (!IsCellOpen(east))  AddWall(east, FaceAxis.WestEast);
+            if (!IsCellOpen(down))  AddWall(coordinates, FaceAxis.DownUp);
+            if (!IsCellOpen(up))    AddWall(up, FaceAxis.DownUp);
             if (!IsCellOpen(south)) AddWall(coordinates, FaceAxis.SouthNorth);
             if (!IsCellOpen(north)) AddWall(north, FaceAxis.SouthNorth);
 
@@ -172,22 +172,11 @@ namespace GameU
 
         private void AddWall(Vector3Int coordinates, FaceAxis faceAxis)
         {
-#if DEBUG
-            if (!coordinates.IsInRange(Vector3Int.zero, GridSize + Vector3Int.one))
-            {
-                throw new ArgumentOutOfRangeException();
-            }
-#endif
-
+            Debug.Assert(coordinates.IsInRange(Vector3Int.zero, GridSize + Vector3Int.one));
             GridWall wall = new(coordinates, faceAxis);
             allWalls.Add(wall);
-
-            // Ignore exterior walls for the frontier, since they can never be removed.
-            if (!IsExteriorWall(wall))
-            {
-                Debug.Assert(!frontierWalls.Contains(wall));
-                frontierWalls.Add(wall);
-            }
+            Debug.Assert(!frontierWalls.Contains(wall));
+            frontierWalls.Add(wall);
         }
 
         #endregion
