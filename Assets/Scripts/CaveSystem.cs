@@ -316,6 +316,8 @@ namespace GameU
             progressImage.gameObject.SetActive(true);
             yield return null;
 
+            // Excavate rooms
+
             for (int roomNumber = 0; roomNumber < RoomCount; roomNumber++)
             {
                 progressImage.fillAmount = roomNumber / (float)RoomCount;
@@ -325,35 +327,42 @@ namespace GameU
             progressImage.fillAmount = 1f;
             yield return null;
 
-            // Excavate passages between rooms with a maze algorithm
-            Vector3Int mazeSize = new(mazeWidth, 1, mazeWidth);
+            // Excavate passages between rooms
+
+            // Create an imaginary maze of rooms on a square grid
+            // Each cell of the grid represents a room.
+            Vector3Int mazeSize = new Vector3Int(mazeWidth, 1, mazeWidth);
             RoomsMaze = new GridMaze(mazeSize);
             RoomsMaze.Generate();
 
             // Visit each room and excavate a passage to its west and south
-            // neighbor rooms, only if there is no maze wall between them.
-            for (int fromRoom = 0; fromRoom < RoomCount; fromRoom++)
+            // neighbor rooms, unless there is a maze wall between them.
+            for (int currentRoomIndex = 0; currentRoomIndex < RoomCount; currentRoomIndex++)
             {
-                progressImage.fillAmount = fromRoom / (float)RoomCount;
+                progressImage.fillAmount = currentRoomIndex / (float)RoomCount;
 
-                int x = fromRoom % mazeWidth;
-                int z = fromRoom / mazeWidth;
-                Vector3Int fromRoomCoords = new(x, 0, z);
+                // Get the room's location in maze coordinates.
+                // (NOT the same as the cave's voxel coordinates)
+                int x = currentRoomIndex % mazeWidth;
+                int z = currentRoomIndex / mazeWidth;
+                Vector3Int fromRoomCoords = new Vector3Int(x, 0, z);
 
                 GridWall westWall = new(fromRoomCoords, FaceAxis.WestEast);
                 if (!RoomsMaze.Walls.Contains(westWall))
                 {
+                    // Get the index of the room to the west and excavate to it from this room
                     Vector3Int west = fromRoomCoords.Step(Direction.West);
-                    int westRoom = west.x + west.z * mazeWidth;
-                    yield return ExcavatePassageBetweenRoomCenters(fromRoom, westRoom);
+                    int westRoomIndex = west.x + west.z * mazeWidth;
+                    yield return ExcavatePassageBetweenRoomCenters(currentRoomIndex, westRoomIndex);
                 }
 
                 GridWall southWall = new(fromRoomCoords, FaceAxis.SouthNorth);
                 if (!RoomsMaze.Walls.Contains(southWall))
                 {
+                    // Get the index of the room to the south and excavate to it from this room
                     Vector3Int south = fromRoomCoords.Step(Direction.South);
-                    int southRoom = south.x + south.z * mazeWidth;
-                    yield return ExcavatePassageBetweenRoomCenters(fromRoom, southRoom);
+                    int southRoomIndex = south.x + south.z * mazeWidth;
+                    yield return ExcavatePassageBetweenRoomCenters(currentRoomIndex, southRoomIndex);
                 }
             }
 

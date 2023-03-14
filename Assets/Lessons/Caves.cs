@@ -1,4 +1,3 @@
-using GameU;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -133,7 +132,8 @@ namespace Lessons
         [SerializeField, Tooltip("0 = randomize")] int seed = 0;
         [SerializeField, Range(0f, 1f)] float randomRoomCenters = 0.5f;
         [SerializeField] bool windingPassages = false;
-        [SerializeField] int roomCount = 1;
+        int RoomCount => mazeWidth * mazeWidth;
+        [SerializeField, Range(1, 10)] int mazeWidth = 4;
         [SerializeField] Material wallMaterial;
         [SerializeField] Material floorCeilingMaterial;
 
@@ -213,7 +213,7 @@ namespace Lessons
         private void Awake()
         {
             cells = new bool[gridSize.x, gridSize.y, gridSize.z];            
-            roomCenters = new Vector3Int[roomCount];
+            roomCenters = new Vector3Int[RoomCount];
             if (seed == 0)
             {
                 seed = (int)DateTime.Now.Ticks;
@@ -240,7 +240,7 @@ namespace Lessons
 
         private IEnumerator CreateMaze()
         {
-            GridMaze maze = new(gridSize);
+            GridMaze maze = new GridMaze(gridSize);
             var justVerticalWalls = maze.Walls.Where(wall => wall.faceAxis != FaceAxis.DownUp);
             allWalls.UnionWith(justVerticalWalls);
             yield return CreateAllWallObjects();
@@ -248,13 +248,45 @@ namespace Lessons
 
         private IEnumerator CreateCaves()
         {
-            for (int roomNumber = 0; roomNumber < roomCount; roomNumber++)
+            for (int roomNumber = 0; roomNumber < RoomCount; roomNumber++)
             {
                 yield return ExcavateRoom(roomNumber);
             }
 
+            // TODO - create mazeWidth and replace roomCount with a property that is the square of mazeWidth
+
             // TODO - excavate passages between rooms
-            yield return ExcavatePassageBetweenRoomCenters(0, 1);
+            //yield return ExcavatePassageBetweenRoomCenters(0, 1);
+
+            Vector3Int mazeSize = new Vector3Int(mazeWidth, 1, mazeWidth);
+            GridMaze roomMaze = new GridMaze(mazeSize);
+            roomMaze.Generate();
+
+            // Visit each room and excavate a passage to its west and south
+            // neighbor rooms, unless there is a maze wall between them.
+            for (int currentRoomIndex = 0; currentRoomIndex < RoomCount; currentRoomIndex++)
+            {
+                int x = currentRoomIndex % mazeWidth;
+                int z = currentRoomIndex / mazeWidth;
+                Vector3Int currentRoomCoords = new Vector3Int(x, 0, z);
+
+                GridWall westWall = new GridWall(currentRoomCoords, FaceAxis.WestEast);
+                GridWall southWall = new GridWall(currentRoomCoords, FaceAxis.SouthNorth);
+
+                if (!roomMaze.Walls.Contains(westWall))
+                {
+                    Vector3Int west = currentRoomCoords.Step(Direction.West);
+                    int westRoomIndex = west.x + west.z * mazeWidth;
+                    yield return ExcavatePassageBetweenRoomCenters(currentRoomIndex, westRoomIndex);
+                }
+
+                if (!roomMaze.Walls.Contains(southWall))
+                {
+                    Vector3Int south = currentRoomCoords.Step(Direction.South);
+                    int southRoomIndex = south.x + south.z * mazeWidth;
+                    yield return ExcavatePassageBetweenRoomCenters(currentRoomIndex, southRoomIndex);
+                }
+            }
 
             yield return CreateAllWallObjects();
         }
@@ -290,7 +322,7 @@ namespace Lessons
 
         private void GetRoomCenterAndSize(int roomNumber, out Vector3Int center, out Vector3Int roomSize)
         {
-            int gridWidth = Mathf.CeilToInt(Mathf.Sqrt(roomCount));
+            int gridWidth = Mathf.CeilToInt(Mathf.Sqrt(RoomCount));
             Vector3Int blockSize = gridSize / gridWidth;
             blockSize = Vector3Int.Max(blockSize, Vector3Int.one);
             Vector3Int halfBlockSize = blockSize / 2;

@@ -1008,7 +1008,7 @@ MonoBehaviour:
   gridSize: {x: 100, y: 12, z: 100}
   mazeWidth: 4
   randomRoomCenters: 0.4
-  windingPassages: 0
+  windingPassages: 1
   seed: 0
   createMaze: 0
   progressImage: {fileID: 1969018949}
