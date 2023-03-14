@@ -1005,8 +1005,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6abb9b9b02ac5b94eaa8451d13cde97d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  gridSize: {x: 100, y: 12, z: 100}
-  mazeWidth: 4
+  gridSize: {x: 100, y: 8, z: 100}
+  mazeWidth: 5
   randomRoomCenters: 0.4
   windingPassages: 1
   seed: 0
@@ -1042,9 +1042,7 @@ MonoBehaviour:
   cellSize: {x: 2, y: 1.5, z: 2}
   wallThickness: 0.3
   wallMaterial: {fileID: 2100000, guid: aea59646a06712e4fbd44ca7cabb2b7a, type: 2}
-  floorCeilingMaterial: {fileID: 2100000, guid: f4ba3841c1fbb3e4a8eee8560345578f,
-    type: 2}
-  progressImage: {fileID: 1969018949}
+  floorMaterial: {fileID: 2100000, guid: f4ba3841c1fbb3e4a8eee8560345578f, type: 2}
 --- !u!114 &1122212761
 MonoBehaviour:
   m_ObjectHideFlags: 0

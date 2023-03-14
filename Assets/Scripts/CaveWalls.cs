@@ -1,8 +1,6 @@
-using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace GameU
 {
@@ -12,16 +10,19 @@ namespace GameU
         [SerializeField] Vector3 cellSize = new(2f, 1.5f, 2f);
         [SerializeField] float wallThickness = 0.3f;
         [SerializeField] Material wallMaterial;
-        [SerializeField] Material floorCeilingMaterial;
-        [SerializeField] Image progressImage;
+        [SerializeField] Material floorMaterial;
 
-        private CaveSystem caves;
-
-        private const float COROUTINE_TIME_SLICE = 0.05f; // seconds
+        CaveSystem caves;
+        Mesh wallMesh;
+        readonly List<BatchOfMatrices> wallMatrices = new();
+        BatchOfMatrices currentBatchOfWallMatrices;
+        readonly List<BatchOfMatrices> floorMatrices = new();
+        BatchOfMatrices currentBatchOfFloorMatrices;
 
         private void Awake()
         {
             caves = GetComponent<CaveSystem>();
+            wallMesh = Resources.GetBuiltinResource<Mesh>("Cube.fbx");
         }
 
         private void Start()
@@ -29,47 +30,87 @@ namespace GameU
             caves.OnCreated += Caves_OnCreated;
         }
 
+        private void Update()
+        {
+            // NOTE: Use deferred rendering in order to get correct lighting.
+            // Forward rendering cannot correctly illuminate batches that overlap too many lights (more than 8).
+            foreach (BatchOfMatrices batch in wallMatrices)
+            {
+                Graphics.DrawMeshInstanced(wallMesh, gameObject.layer, wallMaterial, batch.Matrices, batch.Count);
+            }
+
+            foreach (BatchOfMatrices batch in floorMatrices)
+            {
+                Graphics.DrawMeshInstanced(wallMesh, gameObject.layer, floorMaterial, batch.Matrices, batch.Count);
+            }
+        }
+
         private void Caves_OnCreated()
         {
-            StartCoroutine(CreateWalls(caves.Walls));
-        }
-
-        public void CreateMazeWalls(IReadOnlyCollection<GridWall> walls)
-        {
-            foreach (GridWall wall in walls)
+            foreach (GridWall wall in caves.Walls)
             {
-                // HACK to see the interior walls
-                if (wall.faceAxis == FaceAxis.DownUp) continue;
-                CreateWallObject(wall, transform);
+                AddWall(wall);
             }
         }
 
-        public IEnumerator CreateWalls(IReadOnlyCollection<GridWall> walls)
+        private class BatchOfMatrices
         {
-            int p = 0;
-            progressImage.color = Color.blue;
-            progressImage.fillAmount = 0f;
-            yield return null;
+            public Matrix4x4[] Matrices { get; private set; } = new Matrix4x4[MAX_COUNT];
+            public int Count { get; private set; }
+            public const int MAX_COUNT = 1023; // Unity's DrawMeshInstanced has a limit of 1023 instances per call
+            public bool IsFull => (Count >= MAX_COUNT);
 
-            float time = Time.realtimeSinceStartup;
-            foreach (GridWall wall in walls)
+            public void Add(Vector3 position, Vector3 scale)
             {
-                progressImage.fillAmount = p++ / (float)walls.Count;
-                CreateWallObject(wall, transform);
-                // TIME SLICE
-                // Periodically give control back to Unity's update loop,
-                // so that the app remains interactive and avoid freezing.
-                if (Time.realtimeSinceStartup - time > COROUTINE_TIME_SLICE)
-                {
-                    time = Time.realtimeSinceStartup;
-                    yield return null;
-                }
+                Matrix4x4 matrix = new();
+                matrix.SetTRS(position, Quaternion.identity, scale);
+                Matrices[Count++] = matrix;
+            }
+        }
+
+        private void AddWall(GridWall wall)
+        {
+            if (currentBatchOfWallMatrices is null || currentBatchOfWallMatrices.IsFull)
+            {
+                currentBatchOfWallMatrices = new BatchOfMatrices();
+                wallMatrices.Add(currentBatchOfWallMatrices);
             }
 
-            progressImage.fillAmount = 1f;
-            yield return null;
-            progressImage.gameObject.SetActive(false);
+            if (currentBatchOfFloorMatrices is null || currentBatchOfFloorMatrices.IsFull)
+            {
+                currentBatchOfFloorMatrices = new BatchOfMatrices();
+                floorMatrices.Add(currentBatchOfFloorMatrices);
+            }
+
+            Vector3 position = wall.coordinates;
+            position.Scale(cellSize); // convert from WALL coordinates to WORLD coordinates
+            Vector3 scale = cellSize;
+            switch (wall.faceAxis)
+            {
+                case FaceAxis.WestEast:
+                    position += new Vector3(0f, cellSize.y, cellSize.z) / 2f;
+                    scale.x *= wallThickness;
+                    currentBatchOfWallMatrices.Add(position, scale);                    
+                    break;
+
+                case FaceAxis.DownUp:
+                    position += new Vector3(cellSize.x, 0f, cellSize.z) / 2f;
+                    scale.y *= wallThickness;
+                    currentBatchOfFloorMatrices.Add(position, scale);
+                    break;
+
+                case FaceAxis.SouthNorth:
+                    position += new Vector3(cellSize.x, cellSize.y, 0f) / 2f;
+                    scale.z *= wallThickness;
+                    currentBatchOfWallMatrices.Add(position, scale);
+                    break;
+
+                default:
+                    throw new InvalidEnumArgumentException();
+            }            
         }
+
+        /***********************************************************/
 
         public bool TryGetFloorPosition(ref Vector3Int coordinates, out Vector3 floorPosition)
         {
@@ -87,31 +128,6 @@ namespace GameU
             return transform.position + offset;
         }
 
-        public Vector3 GetWallPosition(GridWall wall)
-        {
-            Vector3 halfStep = cellSize / 2f;
-            Vector3 position = wall.coordinates;
-            position.Scale(cellSize);
-            switch (wall.faceAxis)
-            {
-                case FaceAxis.WestEast:
-                    position += new Vector3(0f, halfStep.y, halfStep.z);
-                    break;
-
-                case FaceAxis.DownUp:
-                    position += new Vector3(halfStep.x, 0f, halfStep.z);
-                    break;
-
-                case FaceAxis.SouthNorth:
-                    position += new Vector3(halfStep.x, halfStep.y, 0f);
-                    break;
-
-                default:
-                    throw new InvalidEnumArgumentException();
-            }
-            return position;
-        }
-
         public Vector3 GetCellFacePosition(Vector3Int coordinates, Direction direction)
         {
             Vector3 position = GetCellPosition(coordinates);
@@ -123,61 +139,6 @@ namespace GameU
             if (direction.HasFlag(Direction.East)) position.x += halfStep.x;
             if (direction.HasFlag(Direction.West)) position.x -= halfStep.x;
             return position;
-        }
-
-        private GameObject CreateWallObject(GridWall wall, Transform wallParent)
-        {
-            var wallObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            wallObj.transform.parent = wallParent;
-            wallObj.name = $"Wall {wall.coordinates} {wall.faceAxis}";
-            wallObj.GetComponent<Renderer>().material = (wall.faceAxis == FaceAxis.DownUp) ? floorCeilingMaterial : wallMaterial;
-            SetWallTransform(wall, wallObj.transform, wallThickness);
-            return wallObj;
-        }
-
-        private void SetWallTransform(GridWall wall, Transform wallTransform, float wallThickness)
-        {
-            Vector3 halfStep = cellSize / 2f;
-            Vector3 position = wall.coordinates;
-            position.Scale(cellSize);
-            Vector3 scale = cellSize;
-            switch (wall.faceAxis)
-            {
-                case FaceAxis.WestEast:
-                    position += new Vector3(0f, halfStep.y, halfStep.z);
-                    scale.x *= wallThickness;
-                    break;
-
-                case FaceAxis.DownUp:
-                    position += new Vector3(halfStep.x, 0f, halfStep.z);
-                    scale.y *= wallThickness;
-                    break;
-
-                case FaceAxis.SouthNorth:
-                    position += new Vector3(halfStep.x, halfStep.y, 0f);
-                    scale.z *= wallThickness;
-                    break;
-
-                default:
-                    throw new InvalidEnumArgumentException();
-            }
-            wallTransform.transform.position = position;
-            wallTransform.transform.localScale = scale;
-        }
-
-        private bool RemoveWallObject(GridWall wall, Transform wallParent)
-        {
-            for (int i = 0; i < wallParent.childCount; i++)
-            {
-                Transform child = wallParent.GetChild(i);
-                Vector3 position = GetWallPosition(wall);
-                if (Vector3.SqrMagnitude(child.position - position) < 0.1f)
-                {
-                    Destroy(child.gameObject);
-                    return true;
-                }
-            }
-            return false;
-        }       
+        }        
     }
 }

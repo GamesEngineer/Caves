@@ -28,7 +28,7 @@ namespace GameU
     public class CaveSystem : MonoBehaviour
     {
         [SerializeField] Vector3Int gridSize = new(64, 8, 64);
-        [SerializeField, Range(1, 7)] int mazeWidth = 4;
+        [SerializeField, Range(1, 10)] int mazeWidth = 4;
         [SerializeField, Range(0f, 1f)] float randomRoomCenters = 0.5f;
         [SerializeField] bool windingPassages = true;
         [SerializeField, Tooltip("0 = randomize")] int seed = 0;
@@ -36,6 +36,7 @@ namespace GameU
         [SerializeField] UnityEngine.UI.Image progressImage;
 
         public int RoomCount => mazeWidth * mazeWidth;
+        public Vector3Int RoomSize { get; private set; }
         public Vector3Int GridSize => gridSize;
         public GridMaze RoomsMaze { get; private set; }
         public IReadOnlyCollection<GridWall> Walls => allWalls;
@@ -227,25 +228,20 @@ namespace GameU
 
         private IEnumerator ExcavateRoom(int roomNumber)
         {
-            Vector3Int blockSize = gridSize / mazeWidth;
-            blockSize = Vector3Int.Max(blockSize, Vector3Int.one);
-            Vector3Int halfBlockSize = blockSize / 2;
-
-            Vector3Int center = halfBlockSize;
+            Vector3Int halfRoomSize = Vector3Int.Max(RoomSize / 2, Vector3Int.one);
+            Vector3Int center = halfRoomSize;
             // move the room's center to the its unique placement in the larger grid of rooms
-            center.x += blockSize.x * (roomNumber % mazeWidth);
+            center.x += RoomSize.x * (roomNumber % mazeWidth);
             center.y = 0;
-            center.z += blockSize.z * (roomNumber / mazeWidth);
+            center.z += RoomSize.z * (roomNumber / mazeWidth);
 
-            Vector3Int roomSize = Vector3Int.Max(blockSize / 2, Vector3Int.one);
-            int roomCellCount = 2 * roomSize.x * roomSize.y * roomSize.z;
 
             if (randomRoomCenters > 0f)
             {
                 Vector3Int wiggle = new(
-                    (int)(roomSize.x * randomRoomCenters),
-                    (int)(roomSize.y * randomRoomCenters),
-                    (int)(roomSize.z * randomRoomCenters));
+                    (int)(RoomSize.x * randomRoomCenters),
+                    (int)(RoomSize.y * randomRoomCenters),
+                    (int)(RoomSize.z * randomRoomCenters));
                 Vector3Int minInclusive = center - wiggle;
                 Vector3Int maxExclusive = center + wiggle + Vector3Int.one;
                 minInclusive.Clamp(Vector3Int.zero, gridSize);
@@ -254,9 +250,10 @@ namespace GameU
             }
 
             // Lesson - start with just Excavate(center) before implementing ExcavateVolume(center, roomCellCount)
-            yield return ExcavateVolume(center, roomCellCount); // TODO - limit excavation to min/max
+            int maxCellCount = RoomSize.x * RoomSize.y * RoomSize.z / 2;
+            yield return ExcavateVolume(center, maxCellCount); // TODO - limit excavation to min/max
             roomCenters[roomNumber] = center;
-            print($"Room {roomNumber} has {roomCellCount} cells placed at {center} with a max size of {roomSize}");
+            print($"Room {roomNumber} has {maxCellCount} cells placed at {center} with a max size of {RoomSize}");
         }
 
         private IEnumerator ExcavatePassage(Vector3Int fromCoordinates, Vector3Int toCoordinates)
@@ -377,6 +374,7 @@ namespace GameU
         {
             cells = new bool[gridSize.x, gridSize.y, gridSize.z];
             roomCenters = new Vector3Int[RoomCount];
+            RoomSize = Vector3Int.Max(gridSize / mazeWidth, Vector3Int.one);
             if (seed == 0) seed = (int)DateTime.Now.Ticks;
             UnityEngine.Random.InitState(seed);
         }
@@ -395,9 +393,8 @@ namespace GameU
 
         private IEnumerator CreateTestMaze()
         {
-            gridSize.y = 1;
             float time = Time.realtimeSinceStartup;
-            RoomsMaze = new(gridSize);
+            RoomsMaze = new(new Vector3Int(mazeWidth, 1, mazeWidth));
             RoomsMaze.Generate();
             print($"Maze generated {RoomsMaze.Walls.Count} walls in {Time.realtimeSinceStartup - time} seconds");
             yield return null;
@@ -405,6 +402,8 @@ namespace GameU
             allWalls.UnionWith(RoomsMaze.Walls.Where(w => w.faceAxis != FaceAxis.DownUp));
             print($"{allWalls.Count} walls remaining");
             yield return null;
+
+            progressImage.enabled = false;
 
             OnCreated?.Invoke();
         }

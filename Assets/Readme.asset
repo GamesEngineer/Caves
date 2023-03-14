@@ -27,8 +27,8 @@ MonoBehaviour:
     text: Topics include maze generation using randomized Prim's algorithm.
     linkText:
     url:
-  - heading:
-    text:
+  - heading: Lesson 3- Visualizing walls (part 1)
+    text: Topics include C# events, and Unity's Graphics.DrawMeshInstanced and Matrix4x4.
     linkText:
     url:
   loadedLayout: 1

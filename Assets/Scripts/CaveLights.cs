@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace GameU
@@ -37,6 +35,7 @@ namespace GameU
                 Light light = Instantiate(lightPrefab, position, Quaternion.identity);
                 light.transform.parent = transform;
                 light.name = $"Light {coordinates}";
+                light.range = Mathf.Max(caves.RoomSize.x, caves.RoomSize.y, caves.RoomSize.z);
             }
         }
     }

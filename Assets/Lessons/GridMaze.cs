@@ -88,7 +88,11 @@ namespace Lessons
 
         void AddWall(Vector3Int coordinates, FaceAxis faceAxis)
         {
-            // TODO - next time!
+            Debug.Assert(coordinates.IsInRange(Vector3Int.zero, GridSize + Vector3Int.one));
+            GridWall wall = new(coordinates, faceAxis);
+            allWalls.Add(wall);
+            Debug.Assert(!frontierWalls.Contains(wall));
+            frontierWalls.Add(wall);
         }
 
         bool TakeRandomWallFromFrontier(out GridWall wall)
