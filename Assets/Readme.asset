@@ -20,15 +20,19 @@ MonoBehaviour:
     linkText: 
     url:
   - heading: Lesson 1 - Directions and GridWalls
-    text: Topics include enumeration types, bit flags, struct types, and extension methods.
+    text: Enumeration types, bit flags, struct types, and extension methods.
     linkText:
     url:
   - heading: Lesson 2 - GridMaze with Prim's algorithm
-    text: Topics include maze generation using randomized Prim's algorithm.
+    text: Maze generation using randomized Prim's algorithm.
     linkText:
     url:
-  - heading: Lesson 3- Visualizing walls (part 1)
-    text: Topics include C# events, and Unity's Graphics.DrawMeshInstanced and Matrix4x4.
+  - heading: Lesson 3 - Visualizing walls (part 1)
+    text: C# events, and Unity's Graphics.DrawMeshInstanced and Matrix4x4.
+    linkText:
+    url:
+  - heading: Lesson 4 - Visualizing walls (part 2)
+    text: Creating batches of affine transformation matrices (translation, rotation, scale) for Unity's Graphics.DrawMeshInstanced function.
     linkText:
     url:
   loadedLayout: 1

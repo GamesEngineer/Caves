@@ -33,7 +33,8 @@ namespace Lessons
             maze.Generate();
             yield return null;
 
-            allWalls.UnionWith(maze.Walls.Where(wall => wall.faceAxis != FaceAxis.DownUp));
+            var onlyVerticalWalls = maze.Walls.Where(wall => wall.faceAxis != FaceAxis.DownUp);
+            allWalls.UnionWith(onlyVerticalWalls);
             yield return null;
 
             OnCreated?.Invoke();

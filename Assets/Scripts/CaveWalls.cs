@@ -15,8 +15,8 @@ namespace GameU
         CaveSystem caves;
         Mesh wallMesh;
         readonly List<BatchOfMatrices> wallMatrices = new();
-        BatchOfMatrices currentBatchOfWallMatrices;
         readonly List<BatchOfMatrices> floorMatrices = new();
+        BatchOfMatrices currentBatchOfWallMatrices;
         BatchOfMatrices currentBatchOfFloorMatrices;
 
         private void Awake()
@@ -82,32 +82,33 @@ namespace GameU
                 floorMatrices.Add(currentBatchOfFloorMatrices);
             }
 
+            Vector3 scale = cellSize;
             Vector3 position = wall.coordinates;
             position.Scale(cellSize); // convert from WALL coordinates to WORLD coordinates
-            Vector3 scale = cellSize;
+            // Due to how we encode wall coordinates, 'position' is located at the corner
+            // (west, down, south) of the grid cell that "owns" this wall. We need to
+            // translate the center of the wall's mesh to the center of the appropriate face
+            // of its grid cell.
+            // Also, a cube mesh doesn't look like a thin wall. So, we need to flatten it (scale)
+            // along the wall's face-axis.
             switch (wall.faceAxis)
             {
                 case FaceAxis.WestEast:
                     position += new Vector3(0f, cellSize.y, cellSize.z) / 2f;
                     scale.x *= wallThickness;
-                    currentBatchOfWallMatrices.Add(position, scale);                    
                     break;
-
                 case FaceAxis.DownUp:
                     position += new Vector3(cellSize.x, 0f, cellSize.z) / 2f;
                     scale.y *= wallThickness;
-                    currentBatchOfFloorMatrices.Add(position, scale);
                     break;
-
                 case FaceAxis.SouthNorth:
                     position += new Vector3(cellSize.x, cellSize.y, 0f) / 2f;
                     scale.z *= wallThickness;
-                    currentBatchOfWallMatrices.Add(position, scale);
                     break;
-
                 default:
                     throw new InvalidEnumArgumentException();
             }            
+            currentBatchOfWallMatrices.Add(position, scale);
         }
 
         /***********************************************************/
