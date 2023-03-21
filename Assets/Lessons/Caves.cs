@@ -1,3 +1,4 @@
+using GameU;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -20,7 +21,10 @@ namespace Lessons
         Up      = 0b_00010000,
         North   = 0b_00100000,
 
-        All     = 0b_11111111,
+        Negative = Direction.West | Direction.Down | Direction.South, // 0b_00000111
+        Positive = Direction.East | Direction.Up | Direction.North,   // 0b_00111000
+
+        All = 0b_11111111,
     }
 
     public enum FaceAxis : byte
@@ -42,7 +46,14 @@ namespace Lessons
             return (Direction)(1 << ((int)faceAxis + 3));
         }
 
-        // TODO - public static Direction OppositeDirection(this Direction direction)   
+        static Direction OppositeDirection(this Direction direction)
+        {
+            Direction n = direction & Direction.Negative;
+            Direction p = direction & Direction.Positive;
+            int n_opposite = (int)n << 3;
+            int p_opposite = (int)p >> 3;
+            return (Direction)(n_opposite | p_opposite);
+        }
 
         public static Vector3Int Step(this Vector3Int coordinates, Direction direction) 
         {
@@ -63,7 +74,30 @@ namespace Lessons
 
         // TODO - public static Direction TurnRight(this Direction direction)
 
-        // TODO - public static Vector3Int RandomStep(this Vector3Int coordinates, Direction allowedDirections = Direction.All)
+        public static Vector3Int RandomStep(this Vector3Int coordinates, Direction allowedDirections = Direction.All)
+        {
+            int allowedCount = CountBits((uint)allowedDirections);
+            if (allowedCount <= 0) return coordinates;
+
+            int r = UnityEngine.Random.Range(0, allowedCount);
+            Direction stepDirection = Direction.None;
+
+            for (int i = 0; i < 6; i++)
+            {
+                Direction candidate = (Direction)(1 << i);
+                if (allowedDirections.HasFlag(candidate))
+                {
+                    if (r == 0)
+                    {
+                        stepDirection = candidate;
+                        break;
+                    }
+                    r--;
+                }
+            }
+
+            return coordinates.Step(stepDirection);
+        }
 
         public static bool IsInRange(this Vector3Int a, Vector3Int min, Vector3Int max)
         {
@@ -117,11 +151,40 @@ namespace Lessons
             return coordinates.Step(direction);
         }
 
-        // TODO - public static Direction DirectionTowards(this Vector3Int coordinates, Vector3Int targetCoordinates)
+        public static Direction DirectionTowards(this Vector3Int coordinates, Vector3Int targetCoordinates)
+        {
+            Vector3Int delta = targetCoordinates - coordinates;
+            Vector3Int absDelta = new Vector3Int(Mathf.Abs(delta.x), Mathf.Abs(delta.y), Mathf.Abs(delta.z));
+            int maxDelta = (absDelta.x > absDelta.z) ? absDelta.x : absDelta.z;
+            maxDelta = (absDelta.y > maxDelta) ? absDelta.y : maxDelta;
+            if (maxDelta == 0) return Direction.None;
+            Direction direction;
+            if (delta.x <= -maxDelta) direction = Direction.West;
+            else if (delta.x >= maxDelta) direction = Direction.East;
+            else if (delta.y <= -maxDelta) direction = Direction.Down;
+            else if (delta.y >= maxDelta) direction = Direction.Up;
+            else if (delta.z <= -maxDelta) direction = Direction.South;
+            else direction = Direction.North;
+            return direction;
+        }
 
-        // TODO - public static Vector3Int RandomStepTowards(this Vector3Int coordinates, Vector3Int targetCoordinates, Direction allowedDirections = Direction.All)
+        public static Vector3Int RandomStepTowards(this Vector3Int coordinates, Vector3Int targetCoordinates, Direction allowedDirections = Direction.All)
+        {
+            Direction direction = coordinates.DirectionTowards(targetCoordinates);
+            Direction opposite = direction.OppositeDirection();
+            allowedDirections &= ~opposite;
+            return coordinates.RandomStep(allowedDirections);
+        }
 
-        // TODO - public static int CountBits(uint bits)
+        public static int CountBits(uint bits)
+        {
+            int count;
+            for (count = 0; bits != 0; count++)
+            {
+                bits &= bits - 1; // clear the least significant bit set
+            }
+            return count;
+        }
     }
 
     public class Caves : MonoBehaviour
@@ -129,9 +192,9 @@ namespace Lessons
         [SerializeField] Vector3 cellSize = new(2f, 1.5f, 2f);
         [SerializeField] Vector3Int gridSize = new(64, 8, 64);
         [SerializeField] float wallThickness = 0.3f;
-        [SerializeField, Tooltip("0 = randomize")] int seed = 0;
+        [SerializeField, Tooltip("0 = randomize")] int seed;
         [SerializeField, Range(0f, 1f)] float randomRoomCenters = 0.5f;
-        [SerializeField] bool windingPassages = false;
+        [SerializeField] bool windingPassages;
         int RoomCount => mazeWidth * mazeWidth;
         [SerializeField, Range(1, 10)] int mazeWidth = 4;
         [SerializeField] Material wallMaterial;
@@ -253,11 +316,7 @@ namespace Lessons
                 yield return ExcavateRoom(roomNumber);
             }
 
-            // TODO - create mazeWidth and replace roomCount with a property that is the square of mazeWidth
-
-            // TODO - excavate passages between rooms
-            //yield return ExcavatePassageBetweenRoomCenters(0, 1);
-
+            // Create a maze that connects rooms with passages
             Vector3Int mazeSize = new Vector3Int(mazeWidth, 1, mazeWidth);
             GridMaze roomMaze = new GridMaze(mazeSize);
             roomMaze.Generate();
@@ -480,7 +539,18 @@ namespace Lessons
             int passageLength = 0;
             while ((c.x != toCoordinates.x || c.z != toCoordinates.z) && passageLength < failSafe)
             {
-                c = c.LateralStepTowards(toCoordinates);
+                if (windingPassages)
+                {
+                    Direction allowedDirections = Direction.All;
+                    // TODO - start here
+                    // disallow "flying" and digging deep holes
+                    c = c.RandomStepTowards(toCoordinates, allowedDirections);
+                }
+                else
+                {
+                    c = c.LateralStepTowards(toCoordinates);
+                }
+                // TODO - don't step out of bounds
                 TryExcavateStandingSpace(c);
                 passageLength++;
 

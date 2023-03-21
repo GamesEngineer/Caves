@@ -635,8 +635,8 @@ MonoBehaviour:
   wallThickness: 0.3
   seed: 12
   randomRoomCenters: 0.5
-  windingPassages: 0
-  mazeWidth: 10
+  windingPassages: 1
+  mazeWidth: 4
   wallMaterial: {fileID: 2100000, guid: aea59646a06712e4fbd44ca7cabb2b7a, type: 2}
   floorCeilingMaterial: {fileID: 2100000, guid: f4ba3841c1fbb3e4a8eee8560345578f,
     type: 2}
