@@ -1,4 +1,3 @@
-using GameU;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -55,17 +54,17 @@ namespace Lessons
             return (Direction)(n_opposite | p_opposite);
         }
 
-        public static Vector3Int Step(this Vector3Int coordinates, Direction direction) 
+        public static Vector3Int Step(this Vector3Int coordinates, Direction direction, int steps = 1) 
         {
             return direction switch
             {
                 Direction.None => coordinates,
-                Direction.West => coordinates + Vector3Int.left,
-                Direction.East => coordinates + Vector3Int.right,
-                Direction.Down => coordinates + Vector3Int.down,
-                Direction.Up => coordinates + Vector3Int.up,
-                Direction.South => coordinates + Vector3Int.back,
-                Direction.North => coordinates + Vector3Int.forward,
+                Direction.West => coordinates + Vector3Int.left * steps,
+                Direction.East => coordinates + Vector3Int.right * steps,
+                Direction.Down => coordinates + Vector3Int.down * steps,
+                Direction.Up => coordinates + Vector3Int.up * steps,
+                Direction.South => coordinates + Vector3Int.back * steps,
+                Direction.North => coordinates + Vector3Int.forward * steps,
                 _ => throw new ArgumentException(),
             };
         }
@@ -159,12 +158,16 @@ namespace Lessons
             maxDelta = (absDelta.y > maxDelta) ? absDelta.y : maxDelta;
             if (maxDelta == 0) return Direction.None;
             Direction direction;
-            if (delta.x <= -maxDelta) direction = Direction.West;
-            else if (delta.x >= maxDelta) direction = Direction.East;
+
+            if      (delta.x <= -maxDelta) direction = Direction.West;
+            else if (delta.x >= +maxDelta) direction = Direction.East;
+
             else if (delta.y <= -maxDelta) direction = Direction.Down;
-            else if (delta.y >= maxDelta) direction = Direction.Up;
+            else if (delta.y >= +maxDelta) direction = Direction.Up;
+
             else if (delta.z <= -maxDelta) direction = Direction.South;
             else direction = Direction.North;
+
             return direction;
         }
 
@@ -542,15 +545,23 @@ namespace Lessons
                 if (windingPassages)
                 {
                     Direction allowedDirections = Direction.All;
-                    // TODO - start here
-                    // disallow "flying" and digging deep holes
+
+                    // disallow "flying"
+                    if (IsCellOpen(c.Step(Direction.Down))) allowedDirections &= ~Direction.Up;
+
+                    // disallow digging deep holes
+                    if (IsCellOpen(c.Step(Direction.Up, steps: 2))) allowedDirections &= ~Direction.Down;
+
                     c = c.RandomStepTowards(toCoordinates, allowedDirections);
                 }
                 else
                 {
                     c = c.LateralStepTowards(toCoordinates);
                 }
-                // TODO - don't step out of bounds
+
+                // don't step out of bounds
+                c.Clamp(Vector3Int.zero, gridSize - Vector3Int.one * 2);
+
                 TryExcavateStandingSpace(c);
                 passageLength++;
 
