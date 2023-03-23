@@ -305,7 +305,7 @@ namespace GameU
             yield return ExcavatePassage(a, b);
         }
 
-        private IEnumerator Excavate()
+        private IEnumerator ExcavateCaves()
         {
             progressImage.fillAmount = 0f;
             progressImage.gameObject.SetActive(true);
@@ -387,7 +387,7 @@ namespace GameU
             }
             else
             {
-                StartCoroutine(Excavate());
+                StartCoroutine(ExcavateCaves());
             }
         }
 
