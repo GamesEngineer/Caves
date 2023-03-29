@@ -35,4 +35,8 @@ MonoBehaviour:
     text: Creating batches of affine transformation matrices (translation, rotation, scale) for Unity's Graphics.DrawMeshInstanced function.
     linkText:
     url:
+  - heading: Lesson 5 - Excavating a room (part 1)
+    text: Convert room number to grid coordinates (integer division & modulus). List and HashSet collections, and the ICollection interface.
+    linkText:
+    url:
   loadedLayout: 1
