@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace GameU
@@ -20,6 +21,8 @@ namespace GameU
         public bool CanStepForward { get; private set; }
 
         Vector3 targetPosition;
+
+        public event Action OnStepTaken;
 
         private void Awake()
         {
@@ -106,6 +109,7 @@ namespace GameU
 
             CellCoordinates = c;
             targetPosition = floorPosition;
+            OnStepTaken?.Invoke();
             return true;
         }
 
@@ -131,6 +135,7 @@ namespace GameU
 
             CellCoordinates = c;
             targetPosition = floorPosition;
+            OnStepTaken?.Invoke();
             return true;
         }
 
@@ -151,6 +156,7 @@ namespace GameU
 
             CellCoordinates = c;
             targetPosition = floorPosition;
+            OnStepTaken?.Invoke();
             return true;
         }
 
@@ -171,6 +177,7 @@ namespace GameU
 
             CellCoordinates = c;
             targetPosition = floorPosition;
+            OnStepTaken?.Invoke();
             return true;
         }
 
