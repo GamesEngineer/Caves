@@ -16,10 +16,13 @@ namespace Lessons
 
         public event Action OnCreated;
         private Vector3Int[] roomCenters;
+        private bool[/*X*/,/*Y*/,/*Z*/] cells; // false = closed, true = open
 
-        // TODO - keep track of the state of voxels (aka "cells")
-
-        // TODO - public bool IsCellOpen(Vector3Int coordinates)
+        public bool IsCellOpen(Vector3Int coordinates)
+        {
+            if (!coordinates.IsInRange(Vector3Int.zero, gridSize)) return false;
+            return cells[coordinates.x, coordinates.y, coordinates.z];
+        }
 
         public Vector3Int RoomSize { get; private set; }
         public int RoomCount => mazeWidth * mazeWidth;
@@ -28,6 +31,7 @@ namespace Lessons
         {
             RoomSize = Vector3Int.Max(gridSize / mazeWidth, Vector3Int.one);
             roomCenters = new Vector3Int[RoomCount];
+            cells = new bool[gridSize.x, gridSize.y, gridSize.z];
         }
 
         private void Start()
@@ -79,9 +83,21 @@ namespace Lessons
                 yield break;
             }
 
+            //********** START HERE 04/11/2023 *********
             // TODO - update wallsOfRoom with wallsAdded and wallsRemoved
 
-            // TODO - randomly excavate into walls of the room until we make the room "big enough"
+            // randomly excavate into walls of the room until we make the room "big enough"
+            int maxCellCount = RoomSize.x * RoomSize.y * RoomSize.z;
+            for (int i = 0; i < maxCellCount; i++)
+            {
+                // TODO - get a random wall
+                // TODO - excavate through that wall
+                // TODO - update wallsOfRoom with wallsAdded and wallsRemoved
+            }
+
+            print($"allWalls.Count={allWalls.Count}");
+
+            OnCreated?.Invoke();
         }
 
         private bool TryExcavateStandingSpace(Vector3Int coordinates,
@@ -92,7 +108,7 @@ namespace Lessons
             if (!okay) return false;
 
             // Open the cell above. This assumes that character height is 2x cell height.
-            coordinates.Step(Direction.Up);
+            coordinates = coordinates.Step(Direction.Up);
             TryExcavateCell(coordinates, wallsAdded, wallsRemoved); // it's okay for this to fail
             return true;
         }
@@ -101,18 +117,52 @@ namespace Lessons
             ICollection<GridWall> wallsAdded = null,
             ICollection<GridWall> wallsRemoved = null)
         {
-            //**********************************
-            // TODO - START HERE 2023/04/04
-            //**********************************
-            return false;
+            if (!coordinates.IsInRange(Vector3Int.zero, gridSize)) return false;
+
+            // Open the cell
+            cells[coordinates.x, coordinates.y, coordinates.z] = true;
+
+            // Update neighboring walls
+            Vector3Int west = coordinates.Step(Direction.West);
+            Vector3Int east = coordinates.Step(Direction.East);
+            SetWallState(coordinates, FaceAxis.WestEast, !IsCellOpen(west), wallsAdded, wallsRemoved);
+            SetWallState(east, FaceAxis.WestEast, !IsCellOpen(east), wallsAdded, wallsRemoved);
+
+            Vector3Int down = coordinates.Step(Direction.Down);
+            Vector3Int up = coordinates.Step(Direction.Up);
+            SetWallState(coordinates, FaceAxis.DownUp, !IsCellOpen(down), wallsAdded, wallsRemoved);
+            SetWallState(up, FaceAxis.DownUp, !IsCellOpen(up), wallsAdded, wallsRemoved);
+
+            Vector3Int south = coordinates.Step(Direction.South);
+            Vector3Int north = coordinates.Step(Direction.North);
+            SetWallState(coordinates, FaceAxis.SouthNorth, !IsCellOpen(south), wallsAdded, wallsRemoved);
+            SetWallState(north, FaceAxis.SouthNorth, !IsCellOpen(north), wallsAdded, wallsRemoved);
+
+            return true;
         }
 
-        // TODO - private void SetWallState(
-        //      Vector3Int coordinates,
-        //      FaceAxis faceAxis,
-        //      bool isPresent,
-        //      ICollection<GridWall> wallsAdded = null,
-        //      ICollection<GridWall> wallsRemoved = null)
+        private void SetWallState(
+            Vector3Int coordinates,
+            FaceAxis faceAxis,
+            bool isPresent,
+            ICollection<GridWall> wallsAdded = null,
+            ICollection<GridWall> wallsRemoved = null)
+        {
+            Debug.Assert(coordinates.IsInRange(Vector3Int.zero, gridSize + Vector3Int.one));
+
+            GridWall wall = new(coordinates, faceAxis);
+
+            if (isPresent)
+            {
+                allWalls.Add(wall);
+                wallsAdded?.Add(wall);
+            }
+            else
+            {
+                allWalls.Remove(wall);
+                wallsRemoved?.Add(wall);
+            }
+        }
 
     }
 }

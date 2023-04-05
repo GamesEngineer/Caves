@@ -39,4 +39,8 @@ MonoBehaviour:
     text: Convert room number to grid coordinates (integer division & modulus). List and HashSet collections, and the ICollection interface.
     linkText:
     url:
+  - heading: Lesson 6 - Excavating a room (part 2)
+    text: Added a 3D array of cell states (closed, open). Implemented TryExcavateCell and SetWallState methods. Now able to create a very small room, just two cells high.
+    linkText:
+    url:
   loadedLayout: 1

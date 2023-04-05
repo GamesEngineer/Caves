@@ -168,8 +168,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 54e9d41b349816240bd9e5f05296f97f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  gridSize: {x: 64, y: 8, z: 64}
   mazeWidth: 10
-  createMaze: 1
+  createMaze: 0
 --- !u!114 &409700224
 MonoBehaviour:
   m_ObjectHideFlags: 0

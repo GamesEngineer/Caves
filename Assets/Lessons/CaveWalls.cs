@@ -19,12 +19,8 @@ namespace Lessons
         void Awake()
         {
             caves = GetComponent<Caves>();
-            wallMesh = Resources.GetBuiltinResource<Mesh>("Cube.fbx");
-        }
-
-        private void Start()
-        {
             caves.OnCreated += Caves_OnCreated;
+            wallMesh = Resources.GetBuiltinResource<Mesh>("Cube.fbx");
         }
 
         private void Caves_OnCreated()
