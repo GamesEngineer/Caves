@@ -96,19 +96,21 @@ namespace GameU
                 case FaceAxis.WestEast:
                     position += new Vector3(0f, cellSize.y, cellSize.z) / 2f;
                     scale.x *= wallThickness;
+                    currentBatchOfWallMatrices.Add(position, scale);
                     break;
                 case FaceAxis.DownUp:
                     position += new Vector3(cellSize.x, 0f, cellSize.z) / 2f;
                     scale.y *= wallThickness;
+                    currentBatchOfFloorMatrices.Add(position, scale);
                     break;
                 case FaceAxis.SouthNorth:
                     position += new Vector3(cellSize.x, cellSize.y, 0f) / 2f;
                     scale.z *= wallThickness;
+                    currentBatchOfWallMatrices.Add(position, scale);
                     break;
                 default:
                     throw new InvalidEnumArgumentException();
             }            
-            currentBatchOfWallMatrices.Add(position, scale);
         }
 
         /***********************************************************/

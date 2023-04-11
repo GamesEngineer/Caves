@@ -14,13 +14,7 @@ namespace GameU
             randomItem = default;
             if (items.Count <= 0) return false;
             itemIndex = UnityEngine.Random.Range(0, items.Count);
-            var iterator = items.GetEnumerator();
-            iterator.MoveNext();
-            for (int i = 0; i < itemIndex; i++)
-            {
-                iterator.MoveNext();
-            }
-            randomItem = iterator.Current;
+            randomItem = items.ElementAt(itemIndex); // Slow linear search when items is not a List
             return true;
         }
     }
