@@ -43,4 +43,8 @@ MonoBehaviour:
     text: Added a 3D array of cell states (closed, open). Implemented TryExcavateCell and SetWallState methods. Now able to create a very small room, just two cells high.
     linkText:
     url:
+  - heading: Lesson 7 - Excavating a room (part 3)
+    text: Finished implementing TryExcavateRoom. Topics included, Unity coroutines & time-slicing, .NET collection types & interfaces, how to write a "generic method" that takes a type parameter (as well as value parameters), and how to get a specific element in a non-List collection using the ElementAt extension method for enumerable types.
+    linkText:
+    url:
   loadedLayout: 1

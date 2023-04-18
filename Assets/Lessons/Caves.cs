@@ -18,6 +18,8 @@ namespace Lessons
         private Vector3Int[] roomCenters;
         private bool[/*X*/,/*Y*/,/*Z*/] cells; // false = closed, true = open
 
+        const float COROUTINE_TIME_SLICE = 0.05f; // seconds
+
         public bool IsCellOpen(Vector3Int coordinates)
         {
             if (!coordinates.IsInRange(Vector3Int.zero, gridSize)) return false;
@@ -63,12 +65,12 @@ namespace Lessons
         {
             Vector3Int halfRoomSize = Vector3Int.Max(RoomSize / 2, Vector3Int.one);
             Vector3Int center = halfRoomSize;
-            // move the room's center to the its unique placement in the larger grid of rooms
+            // Move the room's center to the its unique placement in the larger grid of rooms
             center.x += RoomSize.x * (roomNumber % mazeWidth);
             center.y = 0;
             center.z += RoomSize.z * (roomNumber / mazeWidth);
 
-            // TODO - add random offset to center
+            // TODO - Add random offset to center
 
             roomCenters[roomNumber] = center;
 
@@ -76,28 +78,54 @@ namespace Lessons
             List<GridWall> wallsAdded = new();
             List<GridWall> wallsRemoved = new();
 
-            Vector3Int coordinates = center;
-
-            if (!TryExcavateStandingSpace(coordinates, wallsAdded, wallsRemoved))
+            if (!TryExcavateStandingSpace(center, wallsAdded, wallsRemoved))
             {
                 yield break;
             }
 
-            //********** START HERE 04/11/2023 *********
-            // TODO - update wallsOfRoom with wallsAdded and wallsRemoved
+            UpdateSetOfWalls(wallsOfRoom, wallsAdded, wallsRemoved);
 
-            // randomly excavate into walls of the room until we make the room "big enough"
+            float time = Time.realtimeSinceStartup;
+            // Randomly excavate into walls of the room until we make the room "big enough"
             int maxCellCount = RoomSize.x * RoomSize.y * RoomSize.z;
             for (int i = 0; i < maxCellCount; i++)
             {
-                // TODO - get a random wall
-                // TODO - excavate through that wall
-                // TODO - update wallsOfRoom with wallsAdded and wallsRemoved
+                if (!wallsOfRoom.GetRandomItem(out GridWall wall, out _)) break;
+
+                TryExcavateWall(wall, wallsAdded, wallsRemoved);
+
+                UpdateSetOfWalls(wallsOfRoom, wallsAdded, wallsRemoved);
+
+                // Periodically give control back to Unity's update loop, so
+                // that the app remains responsive.
+                if (Time.realtimeSinceStartup - time > COROUTINE_TIME_SLICE)
+                {
+                    time = Time.realtimeSinceStartup;
+                    yield return null;
+                }
             }
 
             print($"allWalls.Count={allWalls.Count}");
 
             OnCreated?.Invoke();
+        }
+
+        private void UpdateSetOfWalls(HashSet<GridWall> wallSet,
+            ICollection<GridWall> wallsAdded, ICollection<GridWall> wallsRemoved)
+        {
+            wallSet.UnionWith(wallsAdded);
+            wallSet.ExceptWith(wallsRemoved);
+            wallsAdded.Clear();
+            wallsRemoved.Clear();
+        }
+
+        private bool TryExcavateWall(GridWall wall,
+            ICollection<GridWall> wallsAdded, ICollection<GridWall> wallsRemoved)
+        {
+            bool okay;
+            okay = TryExcavateStandingSpace(wall.PositiveSide, wallsAdded, wallsRemoved);
+            okay |= TryExcavateStandingSpace(wall.NegativeSide, wallsAdded, wallsRemoved);
+            return okay;
         }
 
         private bool TryExcavateStandingSpace(Vector3Int coordinates,
@@ -164,5 +192,19 @@ namespace Lessons
             }
         }
 
+    }
+
+    static class Extensions
+    {
+        public static bool GetRandomItem<ItemType>(this IReadOnlyCollection<ItemType> items,
+            out ItemType randomItem, out int itemIndex)
+        {
+            itemIndex = -1;
+            randomItem = default;
+            if (items.Count <= 0) return false;
+            itemIndex = UnityEngine.Random.Range(0, items.Count);
+            randomItem = items.ElementAt(itemIndex);
+            return true;
+        }
     }
 }
