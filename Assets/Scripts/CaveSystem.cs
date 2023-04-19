@@ -43,19 +43,7 @@ namespace GameU
         private const float COROUTINE_TIME_SLICE = 0.05f; // seconds
 
         public Vector3Int GetRoomCenter(int roomIndex) => roomCenters[roomIndex];
-
-        public static Vector3Int GetRandomCell(Vector3Int min, Vector3Int max)
-        {
-            if (min.x > max.x) (min.x, max.x) = (max.x, min.x);
-            if (min.y > max.y) (min.y, max.y) = (max.y, min.y);
-            if (min.z > max.z) (min.z, max.z) = (max.z, min.z);
-            Vector3Int coordinates = new(
-                UnityEngine.Random.Range(min.x, max.x),
-                UnityEngine.Random.Range(min.y, max.y),
-                UnityEngine.Random.Range(min.z, max.z));
-            return coordinates;
-        }
-
+        
         public bool IsCellOpen(Vector3Int coordinates)
         {
             if (!coordinates.IsInRange(Vector3Int.zero, gridSize)) return false;
@@ -222,13 +210,12 @@ namespace GameU
 
         private IEnumerator ExcavateRoom(int roomNumber)
         {
-            Vector3Int halfRoomSize = Vector3Int.Max(RoomSize / 2, Vector3Int.one);
+            Vector3Int halfRoomSize = Vector3Int.Max(RoomSize / 2, Vector3Int.zero);
             Vector3Int center = halfRoomSize;
             // move the room's center to the its unique placement in the larger grid of rooms
             center.x += RoomSize.x * (roomNumber % mazeWidth);
             center.y = 0;
             center.z += RoomSize.z * (roomNumber / mazeWidth);
-
 
             if (randomRoomCenters > 0f)
             {
@@ -240,7 +227,10 @@ namespace GameU
                 Vector3Int maxExclusive = center + wiggle + Vector3Int.one;
                 minInclusive.Clamp(Vector3Int.zero, gridSize);
                 maxExclusive.Clamp(Vector3Int.zero, gridSize);
-                center = GetRandomCell(minInclusive, maxExclusive);
+                center = new Vector3Int(
+                    UnityEngine.Random.Range(minInclusive.x, maxExclusive.x),
+                    UnityEngine.Random.Range(minInclusive.y, maxExclusive.y),
+                    UnityEngine.Random.Range(minInclusive.z, maxExclusive.z));
             }
 
             // Lesson - start with just Excavate(center) before implementing ExcavateVolume(center, roomCellCount)

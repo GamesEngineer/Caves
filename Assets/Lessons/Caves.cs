@@ -8,9 +8,21 @@ namespace Lessons
 {
     public class Caves : MonoBehaviour
     {
-        [SerializeField] Vector3Int gridSize = new(64, 8, 64);
-        [SerializeField, Range(1, 10)] int mazeWidth = 4;
-        [SerializeField] bool createMaze;
+        [SerializeField]
+        Vector3Int gridSize = new(64, 8, 64);
+
+        [SerializeField, Range(1, 10)]
+        int mazeWidth = 4;
+
+        [SerializeField]
+        bool createMaze;
+
+        [SerializeField, Tooltip("0 = randomize")]
+        int seed = 0;
+
+        [SerializeField, Range(0f, 1f), Tooltip("Ratio of room size to use for random offsets of rooms")]
+        float randomRoomCenters = 0.5f;
+
         public IReadOnlyCollection<GridWall> Walls => allWalls;
         private readonly HashSet<GridWall> allWalls = new();
 
@@ -34,6 +46,9 @@ namespace Lessons
             RoomSize = Vector3Int.Max(gridSize / mazeWidth, Vector3Int.one);
             roomCenters = new Vector3Int[RoomCount];
             cells = new bool[gridSize.x, gridSize.y, gridSize.z];
+
+            if (seed == 0) seed = (int)DateTime.Now.Ticks;
+            UnityEngine.Random.InitState(seed);
         }
 
         private void Start()
@@ -44,7 +59,7 @@ namespace Lessons
             }
             else
             {
-                StartCoroutine(ExcavateRoom(0));
+                StartCoroutine(ExcavateCaves());
             }
         }
 
@@ -61,6 +76,49 @@ namespace Lessons
             OnCreated?.Invoke();
         }
 
+        private IEnumerator ExcavateCaves()
+        {
+            yield return null;
+
+            // Excavate all of the rooms (use RoomCount to know how many rooms)
+            for (int roomNumber = 0; roomNumber < RoomCount; roomNumber++)
+            {
+                yield return ExcavateRoom(roomNumber);
+            }
+
+            // Generate a maze that connects rooms
+            GridMaze maze = new(new Vector3Int(mazeWidth, 1, mazeWidth));
+            maze.Generate();
+
+            // TODO - Lesson 9 - Excavate passages between connected rooms
+            // Visit each room and excavate a passage to its west and south
+            // neighbor rooms, only if there is no maze wall between them.
+            for (int fromRoomIndex = 0; fromRoomIndex < RoomCount; fromRoomIndex++)            
+            {
+                int x = fromRoomIndex % mazeWidth;
+                int z = fromRoomIndex / mazeWidth;
+                Vector3Int fromRoomCoords = new(x, 0, z);
+
+                GridWall westWall = new(fromRoomCoords, FaceAxis.WestEast);
+                if (!maze.Walls.Contains(westWall))
+                {
+                    Vector3Int westRoomCoords = fromRoomCoords.Step(Direction.West);
+                    int westRoomIndex = westRoomCoords.x + westRoomCoords.z * mazeWidth;
+                    // TODO - ExcavatePassageBetweenRoomCenters(fromRoomIndex, westRoomIndex);
+                }
+                
+                GridWall southWall = new(fromRoomCoords, FaceAxis.SouthNorth);
+                if (!maze.Walls.Contains(southWall))
+                {
+                    Vector3Int southRoomCoords = fromRoomCoords.Step(Direction.South);
+                    int southRoomIndex = southRoomCoords.x + southRoomCoords.z * mazeWidth;
+                    // TODO - ExcavatePassageBetweenRoomCenters(fromRoomIndex, southRoomIndex);
+                }
+            }
+
+            OnCreated?.Invoke();
+        }
+
         private IEnumerator ExcavateRoom(int roomNumber)
         {
             Vector3Int halfRoomSize = Vector3Int.Max(RoomSize / 2, Vector3Int.one);
@@ -70,7 +128,21 @@ namespace Lessons
             center.y = 0;
             center.z += RoomSize.z * (roomNumber / mazeWidth);
 
-            // TODO - Add random offset to center
+            if (randomRoomCenters > 0f)
+            {
+                Vector3Int wiggleRoom = new(
+                    (int)(RoomSize.x * randomRoomCenters),
+                    (int)(RoomSize.y * randomRoomCenters),
+                    (int)(RoomSize.z * randomRoomCenters));
+                Vector3Int minInclusive = center - wiggleRoom;
+                Vector3Int maxExclusive = center + wiggleRoom + Vector3Int.one;
+                minInclusive.Clamp(Vector3Int.zero, gridSize); // TODO is this correct?
+                maxExclusive.Clamp(Vector3Int.zero, gridSize);
+                center = new Vector3Int(
+                    UnityEngine.Random.Range(minInclusive.x, maxExclusive.x),
+                    UnityEngine.Random.Range(minInclusive.y, maxExclusive.y),
+                    UnityEngine.Random.Range(minInclusive.z, maxExclusive.z));
+            }
 
             roomCenters[roomNumber] = center;
 
@@ -85,15 +157,24 @@ namespace Lessons
 
             UpdateSetOfWalls(wallsOfRoom, wallsAdded, wallsRemoved);
 
-            float time = Time.realtimeSinceStartup;
             // Randomly excavate into walls of the room until we make the room "big enough"
             int maxCellCount = RoomSize.x * RoomSize.y * RoomSize.z;
+            maxCellCount /= 2;
+            yield return ExpandRoom(wallsOfRoom, maxCellCount, wallsAdded, wallsRemoved);
+
+            print($"allWalls.Count={allWalls.Count}");
+
+        }
+
+        private IEnumerator ExpandRoom(HashSet<GridWall> wallsOfRoom, int maxCellCount,
+            ICollection<GridWall> wallsAdded, ICollection<GridWall> wallsRemoved)
+        {
+            float time = Time.realtimeSinceStartup;
             for (int i = 0; i < maxCellCount; i++)
             {
                 if (!wallsOfRoom.GetRandomItem(out GridWall wall, out _)) break;
 
                 TryExcavateWall(wall, wallsAdded, wallsRemoved);
-
                 UpdateSetOfWalls(wallsOfRoom, wallsAdded, wallsRemoved);
 
                 // Periodically give control back to Unity's update loop, so
@@ -104,10 +185,6 @@ namespace Lessons
                     yield return null;
                 }
             }
-
-            print($"allWalls.Count={allWalls.Count}");
-
-            OnCreated?.Invoke();
         }
 
         private void UpdateSetOfWalls(HashSet<GridWall> wallSet,
