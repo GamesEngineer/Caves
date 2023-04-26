@@ -81,55 +81,72 @@ namespace GameU
             return coordinates.Step(stepDirection);
         }
 
-        public static Direction GetOrthogonalDirection(this Vector3Int fromCoordinates, Vector3Int toCoordinates)
+        public static Direction GetDirection(this Vector3Int fromCoordinates, Vector3Int toCoordinates)
         {
-            Vector3Int delta = toCoordinates - fromCoordinates;
-            Vector3Int absDelta = new Vector3Int(Math.Abs(delta.x), Math.Abs(delta.y), Math.Abs(delta.z));
-            int maxDelta = absDelta.x > absDelta.y ? absDelta.x : absDelta.y;
-            maxDelta = absDelta.z > maxDelta ? absDelta.z : maxDelta;
-            if (maxDelta == 0) return Direction.None;
             Direction direction;
-            if (delta.x <= -maxDelta) direction = Direction.West;
-            else if (delta.x >= maxDelta) direction = Direction.East;
-            else if (delta.z <= -maxDelta) direction = Direction.South;
-            else if (delta.z >= maxDelta) direction = Direction.North;
-            else if (delta.y <= -maxDelta) direction = Direction.Down;
-            else /*if (delta.y >= maxDelta)*/ direction = Direction.Up;
+            Vector3Int delta = toCoordinates - fromCoordinates;
+            Vector3Int absDelta = new(Math.Abs(delta.x), Math.Abs(delta.y), Math.Abs(delta.z));
+
+            if (absDelta.x == 0 && absDelta.y == 0 && absDelta.z == 0)
+            {
+                direction = Direction.None;
+            }
+            else if (absDelta.x >= absDelta.y && absDelta.x >= absDelta.z)
+            {
+                direction = delta.x > 0 ? Direction.East : Direction.West;
+            }
+            else if (absDelta.y >= absDelta.x && absDelta.y >= absDelta.z)
+            {
+                direction = delta.y > 0 ? Direction.Up : Direction.Down;
+            }
+            else // (absDelta.z >= absDelta.x && absDelta.z >= absDelta.y)
+            {
+                direction = delta.z > 0 ? Direction.North : Direction.South;
+            }
+
             return direction;
         }
 
-        public static Direction GetLateralOrthogonalDirection(this Vector3Int fromCoordinates, Vector3Int toCoordinates)
+        /// <param name="fromCoordinates"></param>
+        /// <param name="toCoordinates"></param>
+        /// <returns>Lateral direction that makes the most progress towards the goal</returns>
+        public static Direction GetLateralDirection(this Vector3Int fromCoordinates, Vector3Int toCoordinates)
         {
-            Vector3Int delta = toCoordinates - fromCoordinates;
-            delta.y = 0;
-            Vector3Int absDelta = new Vector3Int(Math.Abs(delta.x), 0, Math.Abs(delta.z));
-            int maxDelta = absDelta.x > absDelta.z ? absDelta.x : absDelta.z;
-            if (maxDelta == 0) return Direction.None;
             Direction direction;
-            if (delta.x <= -maxDelta) direction = Direction.West;
-            else if (delta.x >= maxDelta) direction = Direction.East;
-            else if (delta.z <= -maxDelta) direction = Direction.South;
-            else /*if (delta.z >= maxDelta)*/ direction = Direction.North;
+            int xDistance = toCoordinates.x - fromCoordinates.x;
+            int zDistance = toCoordinates.z - fromCoordinates.z;
+            if (xDistance == 0 && zDistance == 0)
+            {
+                direction = Direction.None;
+            }
+            else if (Math.Abs(xDistance) >= Math.Abs(zDistance))
+            {
+                direction = xDistance > 0 ? Direction.East : Direction.West;
+            }
+            else
+            {
+                direction = zDistance > 0 ? Direction.North : Direction.South;
+            }
             return direction;
         }
 
-        public static Vector3Int LateralOrthogonalStepTowards(this Vector3Int fromCoordinates, Vector3Int toCoordinates)
+        public static Vector3Int LateralStepTowards(this Vector3Int fromCoordinates, Vector3Int toCoordinates)
         {
-            Direction direction = GetLateralOrthogonalDirection(fromCoordinates, toCoordinates);
+            Direction direction = GetLateralDirection(fromCoordinates, toCoordinates);
             return fromCoordinates.Step(direction);
         }
 
-        public static Vector3Int RandomOrthogonalStepTowards(this Vector3Int coordinates, Vector3Int toCoordinates, Direction allowedDirections = Direction.All)
+        public static Vector3Int RandomStepTowards(this Vector3Int coordinates, Vector3Int toCoordinates, Direction allowedDirections = Direction.All)
         {
-            Direction direction = GetOrthogonalDirection(coordinates, toCoordinates);
+            Direction direction = GetDirection(coordinates, toCoordinates);
             Direction opposite = direction.OppositeDirection();
             allowedDirections &= ~opposite;
             return RandomOrthogonalStep(coordinates, allowedDirections);
         }
 
-        public static Vector3Int RandomLateralOrthogonalStepTowards(this Vector3Int fromCoordinates, Vector3Int toCoordinates, Direction allowedDirections = Direction.Lateral)
+        public static Vector3Int RandomLateralStepTowards(this Vector3Int fromCoordinates, Vector3Int toCoordinates, Direction allowedDirections = Direction.Lateral)
         {
-            Direction direction = GetLateralOrthogonalDirection(fromCoordinates, toCoordinates);
+            Direction direction = GetLateralDirection(fromCoordinates, toCoordinates);
             Direction opposite = direction.OppositeDirection();
             allowedDirections &= ~opposite;
             return RandomOrthogonalStep(fromCoordinates, allowedDirections);

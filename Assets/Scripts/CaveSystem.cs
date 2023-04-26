@@ -246,7 +246,7 @@ namespace GameU
             TryExcavateStandingSpace(c);
             float time = Time.realtimeSinceStartup;
 
-            int failSafe = gridSize.x + gridSize.y + gridSize.z * 10;
+            int failSafe = (gridSize.x + gridSize.y + gridSize.z) * 10;
             int passageLength = 0;
             while ((c.x != toCoordinates.x || c.z != toCoordinates.z) && passageLength < failSafe)
             {
@@ -257,11 +257,11 @@ namespace GameU
                     if (IsCellOpen(c.Step(Direction.Down))) allowedDirections &= ~Direction.Up;
                     // Disallow digging deep holes
                     if (IsCellOpen(c.Step(Direction.Up, 2))) allowedDirections &= ~Direction.Down;
-                    c = c.RandomOrthogonalStepTowards(toCoordinates, allowedDirections);
+                    c = c.RandomStepTowards(toCoordinates, allowedDirections);
                 }
                 else
                 {
-                    c = c.LateralOrthogonalStepTowards(toCoordinates);
+                    c = c.LateralStepTowards(toCoordinates);
                 }
                 // TODO - disallow oscillating between adjacent cells
                 c.Clamp(Vector3Int.zero, gridSize - Vector3Int.one * 2);

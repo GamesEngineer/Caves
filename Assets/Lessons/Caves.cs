@@ -1,3 +1,4 @@
+using GameU;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -78,6 +79,7 @@ namespace Lessons
 
         private IEnumerator ExcavateCaves()
         {
+            // TODO - initialize progress meter
             yield return null;
 
             // Excavate all of the rooms (use RoomCount to know how many rooms)
@@ -85,6 +87,9 @@ namespace Lessons
             {
                 yield return ExcavateRoom(roomNumber);
             }
+
+            // TODO - set progress meter to 100%
+            yield return null;
 
             // Generate a maze that connects rooms
             GridMaze maze = new(new Vector3Int(mazeWidth, 1, mazeWidth));
@@ -95,6 +100,8 @@ namespace Lessons
             // neighbor rooms, only if there is no maze wall between them.
             for (int fromRoomIndex = 0; fromRoomIndex < RoomCount; fromRoomIndex++)            
             {
+                // TODO - update progress meter
+
                 int x = fromRoomIndex % mazeWidth;
                 int z = fromRoomIndex / mazeWidth;
                 Vector3Int fromRoomCoords = new(x, 0, z);
@@ -104,19 +111,75 @@ namespace Lessons
                 {
                     Vector3Int westRoomCoords = fromRoomCoords.Step(Direction.West);
                     int westRoomIndex = westRoomCoords.x + westRoomCoords.z * mazeWidth;
-                    // TODO - ExcavatePassageBetweenRoomCenters(fromRoomIndex, westRoomIndex);
+                    yield return ExcavatePassageBetweenRoomCenters(fromRoomIndex, westRoomIndex);
                 }
-                
+
                 GridWall southWall = new(fromRoomCoords, FaceAxis.SouthNorth);
                 if (!maze.Walls.Contains(southWall))
                 {
                     Vector3Int southRoomCoords = fromRoomCoords.Step(Direction.South);
                     int southRoomIndex = southRoomCoords.x + southRoomCoords.z * mazeWidth;
-                    // TODO - ExcavatePassageBetweenRoomCenters(fromRoomIndex, southRoomIndex);
+                    yield return ExcavatePassageBetweenRoomCenters(fromRoomIndex, southRoomIndex);
                 }
             }
 
+            // TODO - set progress meter to 100%
+            yield return null;
+
             OnCreated?.Invoke();
+        }
+
+        // TODO - Lesson 9 - Excavate passage with a grid walk
+        // TODO - Lesson 10 - Excavate passage with a constrained random walk
+        private IEnumerator ExcavatePassageBetweenRoomCenters(int roomA, int roomB)
+        {
+            Vector3Int a = roomCenters[roomA];
+            Vector3Int b = roomCenters[roomB];
+            a = FindFloor(a);
+            b = FindFloor(b);
+            yield return ExcavatePassage(a, b);
+        }
+
+        public Vector3Int FindFloor(Vector3Int coordinates)
+        {
+            Vector3Int sample = coordinates.Step(Direction.Down);
+            while (IsCellOpen(sample))
+            {
+                coordinates = sample;
+                sample = sample.Step(Direction.Down);
+            }
+            return coordinates;
+        }
+
+        private IEnumerator ExcavatePassage(Vector3Int fromCoordinates, Vector3Int toCoordinates)
+        {
+            float time = Time.realtimeSinceStartup;
+
+            Vector3Int c = fromCoordinates;
+            TryExcavateStandingSpace(c);
+            int failSafe = (gridSize.x + gridSize.y + gridSize.z) * 10;
+            int passageLength = 0;
+            while (c.x != toCoordinates.x || c.z != toCoordinates.z)
+            {
+                if (passageLength > failSafe)
+                {
+                    Debug.LogError("Passage length too long");
+                    yield break;
+                }
+
+                c = c.LateralStepTowards(toCoordinates);
+                TryExcavateStandingSpace(c);
+                passageLength++;
+
+                // TIME SLICE
+                // Periodically give control back to Unity's update loop,
+                // so that the app remains interactive and avoid freezing.
+                if (Time.realtimeSinceStartup - time > COROUTINE_TIME_SLICE)
+                {
+                    time = Time.realtimeSinceStartup;
+                    yield return null;
+                }
+            }
         }
 
         private IEnumerator ExcavateRoom(int roomNumber)
@@ -268,7 +331,6 @@ namespace Lessons
                 wallsRemoved?.Add(wall);
             }
         }
-
     }
 
     static class Extensions

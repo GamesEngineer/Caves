@@ -48,10 +48,8 @@ namespace Lessons
             if (direction.HasFlag(Direction.North)) coordinates += Vector3Int.forward * steps;
             return coordinates;
         }
-
         public static Direction NegativeDirection(this FaceAxis faceAxis) => (Direction)faceAxis & Direction.Negative;
         public static Direction PositiveDirection(this FaceAxis faceAxis) => (Direction)faceAxis & Direction.Positive;
-
         public static bool IsInRange(this Vector3Int a, Vector3Int min, Vector3Int max)
         {
             if (min.x > max.x) (min.x, max.x) = (max.x, min.x);
@@ -64,5 +62,33 @@ namespace Lessons
 
             return true;
         }
+      
+        public static Direction GetLateralDirection(this Vector3Int fromCoordinates, Vector3Int toCoordinates)
+        {
+            int xDistance = toCoordinates.x - fromCoordinates.x;
+            int zDistance = toCoordinates.z - fromCoordinates.z;
+            if (xDistance == 0 && zDistance == 0)
+            {
+                return Direction.None;
+            }
+
+            Direction direction; // lateral direction that makes the most progress towards the goal
+            if (Math.Abs(xDistance) >= Math.Abs(zDistance))
+            {
+                direction = xDistance > 0 ? Direction.East : Direction.West;
+            }
+            else
+            {
+                direction = zDistance > 0 ? Direction.North : Direction.South;
+            }
+            return direction;
+        }
+
+        public static Vector3Int LateralStepTowards(this Vector3Int fromCoordinates, Vector3Int toCoordinates)
+        {
+            Direction direction = GetLateralDirection(fromCoordinates, toCoordinates);
+            return fromCoordinates.Step(direction);
+        }
+
     }
 }

@@ -12,6 +12,8 @@ namespace GameU
         [SerializeField] Material wallMaterial;
         [SerializeField] Material floorMaterial;
 
+        public float WallThickness => wallThickness;
+
         CaveSystem caves;
         Mesh wallMesh;
         readonly List<BatchOfMatrices> wallMatrices = new();

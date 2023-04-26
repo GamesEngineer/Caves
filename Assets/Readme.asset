@@ -51,4 +51,8 @@ MonoBehaviour:
     text: Discussion of random number generators (RNG). Initialized Unity's RNG with a seed value. Used Random.Range(min, max) to offset the center of each room in XZ plane.
     linkText:
     url:
+  - heading: Lesson 9 - Passages between rooms (part 1)
+    text: Added code to excavate passages between adjacent rooms, using the maze generator to know which adjacent rooms are connected. Also, wrote functions for FindFloor, LateralStepTowards, and GetLateralDirection
+    linkText:
+    url:
   loadedLayout: 1

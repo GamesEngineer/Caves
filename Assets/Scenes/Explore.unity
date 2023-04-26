@@ -986,6 +986,7 @@ GameObject:
   - component: {fileID: 1122212758}
   - component: {fileID: 1122212760}
   - component: {fileID: 1122212761}
+  - component: {fileID: 1122212762}
   m_Layer: 0
   m_Name: Caves
   m_TagString: Untagged
@@ -1056,6 +1057,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   lightPrefab: {fileID: 8114303401274090493, guid: 9830ecc0c87f7a04389afe788be93724,
+    type: 3}
+--- !u!114 &1122212762
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1122212757}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b5e1d23935109924993428b59be9dbe1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  enemyPrefab: {fileID: 2569827981404561747, guid: 057e9d9449a733d4c9ad18474408dd9f,
     type: 3}
 --- !u!1 &1158033084
 GameObject:
