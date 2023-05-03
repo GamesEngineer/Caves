@@ -50,6 +50,13 @@ namespace Lessons
         }
         public static Direction NegativeDirection(this FaceAxis faceAxis) => (Direction)faceAxis & Direction.Negative;
         public static Direction PositiveDirection(this FaceAxis faceAxis) => (Direction)faceAxis & Direction.Positive;
+        public static Direction OppositeDirection(this Direction direction)
+        {
+            Direction n = direction & Direction.Negative;
+            Direction p = direction & Direction.Positive;
+            return (Direction)( ((int)n << 3) | ((int)p >> 3) );
+        }
+
         public static bool IsInRange(this Vector3Int a, Vector3Int min, Vector3Int max)
         {
             if (min.x > max.x) (min.x, max.x) = (max.x, min.x);
@@ -84,11 +91,82 @@ namespace Lessons
             return direction;
         }
 
+        public static Direction GetDirection(this Vector3Int fromCoordinates, Vector3Int toCoordinates)
+        {
+            Direction direction;
+
+            Vector3Int delta = toCoordinates - fromCoordinates;
+            Vector3Int absDelta = new(Math.Abs(delta.x), Math.Abs(delta.y), Math.Abs(delta.z));
+
+            if (absDelta.x == 0 && absDelta.y == 0 && absDelta.z == 0)
+            {
+                direction = Direction.None;
+            }
+            else if (absDelta.x >= absDelta.y && absDelta.x >= absDelta.z)
+            {
+                direction = delta.x > 0 ? Direction.East : Direction.West;
+            }
+            else if (absDelta.y >= absDelta.x && absDelta.y >= absDelta.z)
+            {
+                direction = delta.y > 0 ? Direction.Up : Direction.Down;
+            }
+            else // (absDelta.z >= absDelta.x && absDelta.z >= absDelta.y)
+            {
+                direction = delta.z > 0 ? Direction.North : Direction.South;
+            }
+
+            return direction;
+        }
+
         public static Vector3Int LateralStepTowards(this Vector3Int fromCoordinates, Vector3Int toCoordinates)
         {
             Direction direction = GetLateralDirection(fromCoordinates, toCoordinates);
             return fromCoordinates.Step(direction);
         }
 
+        // TODO - Lesson 10
+        public static Vector3Int RandomStepTowards(this Vector3Int coordinates, Vector3Int toCoordinates, Direction allowedDirections = Direction.All)
+        {
+            Direction direction = GetDirection(coordinates, toCoordinates);
+            Direction opposite = direction.OppositeDirection();
+            allowedDirections &= ~opposite;
+            return coordinates.RandomOrthogonalStep(allowedDirections);
+        }
+
+        private static int CountBits(uint bits)
+        {
+            int count;
+            for (count = 0; bits != 0; count++)
+            {
+                // clear the least significant bit set
+                bits &= bits - 1;
+            }
+            return count;
+        }
+
+        public static Vector3Int RandomOrthogonalStep(this Vector3Int coordinates, Direction allowedDirections = Direction.All)
+        {
+            Direction stepDirection = Direction.None;
+
+            int allowedCount = CountBits((uint)allowedDirections);
+            if (allowedCount <= 0) return coordinates;
+
+            int r = UnityEngine.Random.Range(0, allowedCount);
+            for (int i = 0; i < 6; i++)
+            {
+                Direction candidate = (Direction)(1 << i);
+                if (allowedDirections.HasFlag(candidate))
+                {
+                    if (r == 0)
+                    {
+                        stepDirection = candidate;
+                        break;
+                    }
+                    r--;
+                }
+            }
+
+            return coordinates.Step(stepDirection);
+        }
     }
 }

@@ -55,4 +55,8 @@ MonoBehaviour:
     text: Added code to excavate passages between adjacent rooms, using the maze generator to know which adjacent rooms are connected. Also, wrote functions for FindFloor, LateralStepTowards, and GetLateralDirection
     linkText:
     url:
+  - heading: Lesson 10 - Passages between rooms (part 2)
+    text: Changed the excavate passages code to perform a "directed random walk." The implementation involved a variety of bitfield manipulation techniques, including masking, counting bits that are set, and selecting a random bit that is set.
+    linkText:
+    url:
   loadedLayout: 1

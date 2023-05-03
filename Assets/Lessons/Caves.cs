@@ -24,6 +24,9 @@ namespace Lessons
         [SerializeField, Range(0f, 1f), Tooltip("Ratio of room size to use for random offsets of rooms")]
         float randomRoomCenters = 0.5f;
 
+        [SerializeField]
+        bool windingPassages = true;
+
         public IReadOnlyCollection<GridWall> Walls => allWalls;
         private readonly HashSet<GridWall> allWalls = new();
 
@@ -129,8 +132,6 @@ namespace Lessons
             OnCreated?.Invoke();
         }
 
-        // TODO - Lesson 9 - Excavate passage with a grid walk
-        // TODO - Lesson 10 - Excavate passage with a constrained random walk
         private IEnumerator ExcavatePassageBetweenRoomCenters(int roomA, int roomB)
         {
             Vector3Int a = roomCenters[roomA];
@@ -151,6 +152,7 @@ namespace Lessons
             return coordinates;
         }
 
+
         private IEnumerator ExcavatePassage(Vector3Int fromCoordinates, Vector3Int toCoordinates)
         {
             float time = Time.realtimeSinceStartup;
@@ -167,7 +169,19 @@ namespace Lessons
                     yield break;
                 }
 
-                c = c.LateralStepTowards(toCoordinates);
+                if (windingPassages)
+                {
+                    // Lesson 10 - Excavate passage with a constrained random walk
+                    // TODO - Lesson 11 - constrain allowed directions to prevent:
+                    //      "digging deep holes",
+                    //      "jumping out of holes",
+                    //      "going out of bounds"
+                    c = c.RandomStepTowards(toCoordinates);
+                }
+                else
+                {
+                    c = c.LateralStepTowards(toCoordinates);
+                }
                 TryExcavateStandingSpace(c);
                 passageLength++;
 
