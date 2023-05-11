@@ -171,17 +171,27 @@ namespace Lessons
 
                 if (windingPassages)
                 {
+                    Direction allowedDirections = Direction.All;
+
                     // Lesson 10 - Excavate passage with a constrained random walk
                     // TODO - Lesson 11 - constrain allowed directions to prevent:
                     //      "digging deep holes",
+                    if (IsCellOpen(c.Step(Direction.Up, 2)))
+                    {
+                        allowedDirections &= ~Direction.Down;
+                    }
                     //      "jumping out of holes",
-                    //      "going out of bounds"
-                    c = c.RandomStepTowards(toCoordinates);
+                    if (IsCellOpen(c.Step(Direction.Down)))
+                    {
+                        allowedDirections &= ~Direction.Up;
+                    }
+                    c = c.RandomStepTowards(toCoordinates, allowedDirections);
                 }
                 else
                 {
                     c = c.LateralStepTowards(toCoordinates);
                 }
+                c.Clamp(Vector3Int.zero, gridSize - Vector3Int.one * 2);
                 TryExcavateStandingSpace(c);
                 passageLength++;
 
